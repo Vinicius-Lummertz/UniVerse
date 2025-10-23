@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Meu Blog com Django</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; line-height: 1.6; }
+        .post { border-bottom: 1px solid #ccc; padding-bottom: 20px; margin-bottom: 20px; }
+        .post h2 { margin-top: 0; }
+        .post-meta { color: #888; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <h1>Bem-vindo ao Meu Blog!</h1>
+
+    {% for post in posts %}
+        <div class="post">
+        <h2>
+            <a href="{% url 'posts_details' pk=post.pk %}">{{ post.title }}</a>
+        </h2>            
+            <p class="post-meta">Publicado em {{ post.createdAt|date:"d/m/Y H:i" }}</p>
+            <p>{{ post.content }}</p>
+        </div>
+    {% empty %}
+        <p>Ainda não há posts no blog. Crie o primeiro no painel de administração!</p>
+    {% endfor %}
+
+</body>
+</html>
