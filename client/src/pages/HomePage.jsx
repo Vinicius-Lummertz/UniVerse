@@ -8,6 +8,9 @@ import { FiPlus, FiTrash2, FiEdit3 } from 'react-icons/fi';
 import CreatePostModal from '../components/CreatePostModal'; // 1. Importe o modal
 import ConfirmationModal from '../components/ConfirmationModal'; // Importe o novo modal
 import toast from 'react-hot-toast'; // Importe o toast
+import Navbar from '../components/NavBar';
+import { Link } from 'react-router-dom';
+
 
 const HomePage = () => {
     const [posts, setPosts] = useState([]);
@@ -85,10 +88,7 @@ const openDeleteModal = (postId) => {
 
     return (
         <div className="pb-20">
-            <header className="flex justify-between items-center p-4 bg-white shadow-md sticky top-0 z-10">
-                <h1 className="text-xl font-bold text-blue-600">SocialApp</h1>
-                <button onClick={logoutUser} className="text-sm bg-red-500 text-white py-1 px-3 rounded hover:bg-red-600">Sair</button>
-            </header>
+            <Navbar/>
 
             <main className="container mx-auto p-4">
                 {/* Timeline */}
@@ -106,7 +106,9 @@ const openDeleteModal = (postId) => {
                                 </button>
                             </div>
                         )}
-                            <p className="font-bold text-gray-800">{post.owner}</p>
+                            <Link to={`/profile/${post.owner}`} className="font-bold hover:underline">
+                                {post.owner}
+                            </Link>                            
                             <p className="font-semibold text-lg mt-1" style={{width: '100%'}}>{post.title}</p>
                             <p className="text-gray-600 mt-2">{post.content}</p>
                             <small className="text-gray-400 text-xs mt-3 block">

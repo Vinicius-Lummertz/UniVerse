@@ -6,6 +6,7 @@ from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerial
 from django.contrib.auth.models import User 
 from .permissions import IsOwnerOrReadOnly
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django_filters.rest_framework import DjangoFilterBackend 
 
 # --- VIEW DE LISTA E CRIAÇÃO ---
 class PostListAPIView(generics.ListCreateAPIView):
@@ -14,6 +15,9 @@ class PostListAPIView(generics.ListCreateAPIView):
     # CORREÇÃO: A permissão aqui deve ser apenas para checar se o usuário está logado
     # para poder CRIAR. Qualquer um pode LER a lista.
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['owner__username']
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -34,3 +38,8 @@ class UserCreateAPIView(generics.CreateAPIView):
 # --- VIEW DE LOGIN/TOKEN (sem alteração) ---
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+
+class UserDetailView(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    lookup_field = 'username'

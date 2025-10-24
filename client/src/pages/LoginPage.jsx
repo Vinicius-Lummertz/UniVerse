@@ -15,10 +15,15 @@ const LoginPage = () => {
         loginUser(username, password);
     };
 
-    return (
-        // CORREÇÃO 3: Fundo de estrelas aplicado na div principal da tela
-        <div className="flex items-center justify-center h-screen bg-stars">
-            <form onSubmit={handleSubmit} className="p-8 bg-white/10 backdrop-blur-md rounded-lg shadow-xl w-96 border border-white/20">
+return (
+        // 1. Adicione a classe 'relative' aqui. Ela vai servir de "âncora" para a nossa camada.
+        <div className="relative flex items-center justify-center h-screen bg-planets bg-cover bg-center bg-no-repeat">
+            
+            {/* 2. Esta é a nossa camada de escurecimento. Ela não tem conteúdo, só estilo. */}
+            <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+
+            {/* 3. Adicione 'relative' e 'z-10' ao formulário para que ele fique ACIMA da camada de escurecimento. */}
+            <form onSubmit={handleSubmit} className="relative z-10 p-8 bg-white/10 backdrop-blur-md rounded-lg shadow-xl w-96 border border-white/20">
                 <h2 className="text-2xl font-bold text-center text-white mb-6">UniVerse Login</h2>
                 <input 
                     type="text" 
@@ -35,7 +40,6 @@ const LoginPage = () => {
                     className="w-full p-3 mb-4 border border-white/30 bg-white/20 text-white rounded placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
                 />
 
-                {/* CORREÇÃO 2: Botão usado da forma correta dentro do form */}
                 <div className="flex justify-center mt-4">
                   <UniVerseButton type="submit">
                       Entrar

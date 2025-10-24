@@ -1,8 +1,14 @@
 // src/components/BottomNav.jsx
 import { Link } from 'react-router-dom';
 import { FiHome, FiUser, FiMessageSquare } from 'react-icons/fi';
+import AuthContext from '../context/AuthContext';
+import { useContext } from 'react';
+
 
 const BottomNav = () => {
+
+    const { user } = useContext(AuthContext)
+
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200">
             <div className="flex justify-around max-w-md mx-auto">
@@ -14,7 +20,7 @@ const BottomNav = () => {
                     <FiMessageSquare size={24} />
                     <span className="text-xs">Chat</span>
                 </Link>
-                <Link to="/profile" className="flex flex-col items-center p-3 text-gray-500 hover:text-blue-500">
+                <Link to={`/profile/${user.username}`} className="flex flex-col items-center p-3 text-gray-500 hover:text-blue-500">
                     <FiUser size={24} />
                     <span className="text-xs">Perfil</span>
                 </Link>

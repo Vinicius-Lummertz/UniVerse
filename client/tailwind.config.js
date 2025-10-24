@@ -9,7 +9,8 @@ export default {
   theme: {
     extend: {
       backgroundImage:{
-        'stars': "url('/beanstalk-dark.webp')",
+        'stars': "url('/stars.png')",
+        'planets': "url('/planets.png')",
       },
       colors: {
         'space-dark': '#0f172a', // Um azul quase preto
@@ -26,5 +27,18 @@ export default {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    require("daisyui"),
+  ],
+  daisyui: {
+    themes: [
+      "light", 
+      "dark", 
+      "night",      // O que estamos usando
+      "synthwave",  // Um tema legal para experimentar
+      "dracula",    // Outro tema escuro popular
+      "cupcake",    // Um tema claro para ver a diferença
+      "bumblebee",
+    ],
+  },
 }
