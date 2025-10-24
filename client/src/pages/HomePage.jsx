@@ -1,13 +1,13 @@
 // src/pages/HomePage.jsx
 
-import { useEffect, useState, useContext, useCallback } from 'react'; // Adicione useCallback
+import { useEffect, useState, useContext, useCallback } from 'react'; 
 import axios from 'axios';
 import BottomNav from '../components/BottomNav';
 import AuthContext from '../context/AuthContext';
 import { FiPlus, FiTrash2, FiEdit3 } from 'react-icons/fi';
-import CreatePostModal from '../components/CreatePostModal'; // 1. Importe o modal
-import ConfirmationModal from '../components/ConfirmationModal'; // Importe o novo modal
-import toast from 'react-hot-toast'; // Importe o toast
+import CreatePostModal from '../components/CreatePostModal'; 
+import ConfirmationModal from '../components/ConfirmationModal'; 
+import toast from 'react-hot-toast'; 
 import Navbar from '../components/NavBar';
 import { Link } from 'react-router-dom';
 
@@ -15,9 +15,9 @@ import { Link } from 'react-router-dom';
 const HomePage = () => {
     const [posts, setPosts] = useState([]);
     const { authTokens, logoutUser, user } = useContext(AuthContext);
-    const [isModalOpen, setIsModalOpen] = useState(false); // 2. Estado para controlar o modal
-    const [editingPost, setEditingPost] = useState(null); // Estado para o post em edição
-     const [postToDelete, setPostToDelete] = useState(null); // Guarda o ID do post a ser deletado    
+    const [isModalOpen, setIsModalOpen] = useState(false); 
+    const [editingPost, setEditingPost] = useState(null); 
+     const [postToDelete, setPostToDelete] = useState(null);    
 
     const getPosts = useCallback(async () => {
         try {
@@ -73,13 +73,11 @@ const openDeleteModal = (postId) => {
         setIsModalOpen(true);
     };
 
-    // Função para abrir o modal em modo de criação
     const handleCreate = () => {
-        setEditingPost(null); // Garante que não estamos em modo de edição
+        setEditingPost(null); 
         setIsModalOpen(true);
     };
     
-    // Função para fechar o modal e limpar o estado de edição
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingPost(null);
@@ -91,11 +89,9 @@ const openDeleteModal = (postId) => {
             <Navbar/>
 
             <main className="container mx-auto p-4">
-                {/* Timeline */}
                 <div className="flex flex-col items-center gap-6">
                     {posts.map(post => (
                         <div key={post.pk} className="bg-white rounded-lg shadow-md p-5 w-full max-w-2xl relative">
-                            {console.log(post.owner)}
                            {user && user.username == post.owner && (
                             <div className="absolute top-3 right-3 flex gap-2">
                                 <button onClick={() => handleEdit(post)} className="text-gray-500 hover:text-blue-600">
@@ -111,6 +107,11 @@ const openDeleteModal = (postId) => {
                             </Link>                            
                             <p className="font-semibold text-lg mt-1" style={{width: '100%'}}>{post.title}</p>
                             <p className="text-gray-600 mt-2">{post.content}</p>
+                            {post.image && (
+                                <figure>
+                                    <img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-cover" />
+                                </figure>
+                            )}
                             <small className="text-gray-400 text-xs mt-3 block">
                                 {new Date(post.createdAt).toLocaleString('pt-BR')}
                             </small>
@@ -119,14 +120,12 @@ const openDeleteModal = (postId) => {
                 </div>
             </main>
 
-            {/* 4. O botão agora abre o modal */}
             <button
                 onClick={() => setIsModalOpen(true)}
                 className="fixed bottom-20 right-5 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition z-20">
                 <FiPlus size={24} />
             </button>
 
-            {/* 5. Renderizamos o modal condicionalmente */}
             {isModalOpen && (
                 <CreatePostModal
                     onClose={handleCloseModal}

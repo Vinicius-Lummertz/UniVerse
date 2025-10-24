@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }) => {
                 const data = response.data;
                 setAuthTokens(data);
                 setUser(jwtDecode(data.access));
+                localStorage.clear()
                 localStorage.setItem('authTokens', JSON.stringify(data));
                 navigate('/');
                 toast.success('Login efetuado com sucesso!')

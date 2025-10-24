@@ -7,6 +7,9 @@ from django.contrib.auth.models import User
 from .permissions import IsOwnerOrReadOnly
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django_filters.rest_framework import DjangoFilterBackend 
+from .models import Profile
+from .serializers import ProfileSerializer
+
 
 # --- VIEW DE LISTA E CRIAÇÃO ---
 class PostListAPIView(generics.ListCreateAPIView):
@@ -29,6 +32,15 @@ class PostDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     # CORREÇÃO: É AQUI que precisamos checar se o usuário é o dono do post
     # para poder EDITAR ou DELETAR.
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
+class ProfileUpdateView(generics.RetrieveUpdateAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        # Retorna o perfil do usuário que está fazendo a requisição
+        return self.request.user.profile
 
 # --- VIEW DE REGISTRO DE USUÁRIO (sem alteração) ---
 class UserCreateAPIView(generics.CreateAPIView):

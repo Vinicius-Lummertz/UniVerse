@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Posts
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .models import Profile 
 
 class PostSerializer(serializers.ModelSerializer):
     
@@ -9,12 +10,21 @@ class PostSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Posts
-        fields = ['pk', 'owner', 'title', 'content', 'createdAt', 'updatedAt']
+        fields = ['pk', 'owner', 'title', 'image', 'content', 'createdAt', 'updatedAt']
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['bio', 'profile_pic']
+
 
 class UserSerializer(serializers.ModelSerializer):
+
+    profile = ProfileSerializer()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password']
+        fields = ['id', 'username', 'email', 'password', 'profile']
         extra_kwargs = {'password': {'write_only': True}}
 
 
@@ -26,6 +36,8 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
         return user
+
+
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

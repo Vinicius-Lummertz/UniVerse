@@ -10,7 +10,7 @@ const CreatePostModal = ({ onClose, onPostCreated, postToEdit }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const { authTokens } = useContext(AuthContext);
-
+    const [image, setImage] = useState(null)
     // Se estiver em modo de edição, preenche o formulário com os dados do post
     useEffect(() => {
         if (postToEdit) {
@@ -19,26 +19,61 @@ const CreatePostModal = ({ onClose, onPostCreated, postToEdit }) => {
         }
     }, [postToEdit]);
 
-    const handlePostSubmit = async (e) => {
-        e.preventDefault();
-        
-        const promise = axios[postToEdit ? 'put' : 'post'](
-            postToEdit ? `http://localhost:8000/api/posts/${postToEdit.pk}/` : 'http://localhost:8000/api/posts/',
-            { title, content },
-            { headers: { 'Authorization': `Bearer ${authTokens.access}` } }
-        );
+    const handleImageChange = (e) => {
+            setImage(e.target.files[0]); // Pega o primeiro arquivo selecionado
+        };
 
-        toast.promise(promise, {
-             loading: 'Salvando...',
-             success: `Post ${postToEdit ? 'editado' : 'criado'} com sucesso!`,
-             error: `Não foi possível salvar o post.`,
-        });
+const handlePostSubmit = async (e) => {
+    e.preventDefault();
 
-        promise.then(() => {
-            onPostCreated();
-            onClose();
-        }).catch(err => console.error(err));
-    };
+    // 1. Prepara o FormData
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('content', content);
+    // Adiciona a imagem ao formData APENAS se uma nova imagem foi selecionada
+    if (image) {
+        formData.append('image', image);
+    }
+
+    const isEditMode = Boolean(postToEdit);
+    const url = isEditMode
+        ? `http://localhost:8000/api/posts/${postToEdit.pk}/`
+        : 'http://localhost:8000/api/posts/';
+    
+    // Para edição, o método PUT substitui o objeto inteiro. Se você não enviar uma imagem, 
+    // a imagem existente pode ser removida. O método PATCH é melhor para atualizações parciais,
+    // mas PUT funcionará com nosso setup. Usaremos 'put' por enquanto.
+    const method = isEditMode ? 'put' : 'post';
+
+    // 2. Cria a promise da requisição, passando o formData
+    const promise = axios({
+        method: method,
+        url: url,
+        data: formData, // <-- A CORREÇÃO PRINCIPAL: Enviando o formData
+        headers: {
+            'Authorization': `Bearer ${authTokens.access}`,
+            // Não é necessário definir 'Content-Type': 'multipart/form-data'. 
+            // O Axios faz isso automaticamente quando você passa um FormData.
+        }
+    });
+
+    // 3. Usa o toast.promise para dar feedback ao usuário
+    toast.promise(promise, {
+        loading: 'Salvando seu post...',
+        success: `Post ${isEditMode ? 'atualizado' : 'criado'} com sucesso!`,
+        error: 'Ocorreu um erro ao salvar seu post.',
+    });
+
+    // 4. Aguarda a promise ser resolvida para executar as ações de sucesso
+    try {
+        await promise;
+        onPostCreated(); // Atualiza a timeline
+        onClose();       // Fecha o modal
+    } catch (error) {
+        console.error("Erro ao enviar o post:", error);
+        // O toast já vai exibir a mensagem de erro, aqui só logamos o detalhe
+    }
+};
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
@@ -62,6 +97,10 @@ const CreatePostModal = ({ onClose, onPostCreated, postToEdit }) => {
                         className="w-full p-2 mb-4 border rounded h-32 resize-none"
                         required
                     ></textarea>
+                    <div className="form-control mt-4">
+                        <label className="label"><span className="label-text">Imagem (Opcional)</span></label>
+                        <input type="file" onChange={handleImageChange} className="file-input file-input-bordered w-full" />
+                    </div>
                     <div className="flex justify-end gap-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
                             Cancelar
