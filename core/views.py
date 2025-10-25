@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import Posts, Profile
-from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer
+from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, UserSearchSerializer
 from django.contrib.auth.models import User 
 from .permissions import IsOwnerOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend 
@@ -52,14 +52,7 @@ class UserCreateAPIView(generics.CreateAPIView):
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
-class UserDetailView(generics.RetrieveAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    lookup_field = 'username'
 
-    def get_serializer_context(self):
-        # Passa o 'request' para o ProfileSerializer
-        return {'request': self.request}
     
 
 class FollowUserView(APIView):
@@ -106,5 +99,29 @@ class UserDeleteView(generics.DestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        
+
         return self.request.user
+    
+class UserSearchView(generics.ListAPIView):
+    serializer_class = UserSearchSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [] 
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', None)
+        if query and len(query) >= 1:
+            print(f"\n--- BUSCANDO por '{query}' ---") # Adicionei um print aqui também
+            # --- REMOVA O .exclude() DESTA LINHA ---
+            results = User.objects.filter(username__icontains=query)
+            print(f"--- RESULTADOS: {list(results)} ---") # Print dos resultados
+            return results
+        return User.objects.none()
+    
+class UserDetailView(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    lookup_field = 'username'
+
+    def get_serializer_context(self):
+        # Passa o 'request' para o ProfileSerializer
+        return {'request': self.request}

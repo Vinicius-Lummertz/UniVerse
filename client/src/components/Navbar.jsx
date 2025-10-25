@@ -1,18 +1,26 @@
-// src/components/Navbar.jsx
-
 import { useContext } from 'react';
 import AuthContext from '../context/AuthContext';
+import SearchUser from './SearchUser';
 
 const Navbar = () => {
     const { logoutUser } = useContext(AuthContext);
 
     return (
-        <header className="p-4 bg-space-dark bg-stars border-b border-slate-700 shadow-lg flex justify-between items-center sticky top-0 z-20">
-            <h1 className="text-xl font-bold text-white">UniVerse</h1>
-            <button onClick={logoutUser}>
-                Sair
-            </button>
-        </header>
+        <div className="navbar bg-base-200 shadow-lg">
+            <div className="navbar-start">
+                <a className="btn btn-ghost text-xl">UniVerse</a>
+            </div>
+            
+            <div className="navbar-center hidden lg:flex">
+                <SearchUser />
+            </div>
+
+            <div className="navbar-end">
+                <button className="btn btn-error btn-sm" onClick={logoutUser}>
+                    Sair
+                </button>
+            </div>
+        </div>
     );
 };
 
