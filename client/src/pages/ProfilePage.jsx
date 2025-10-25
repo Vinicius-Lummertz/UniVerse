@@ -7,6 +7,7 @@ import Navbar from '../components/NavBar';
 import BottomNav from '../components/BottomNav';
 import ImageViewModal from '../components/ImageViewModal';
 import EditProfileModal from '../components/EditProfileModal';
+import toast from 'react-hot-toast'; 
 
 const ProfilePage = () => {
     const { username } = useParams();
@@ -20,6 +21,8 @@ const ProfilePage = () => {
     const [isViewImageOpen, setIsViewImageOpen] = useState(false);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
+    const [isFollowing, setIsFollowing] = useState(false);
+
     // Checa se o usuário logado está vendo o seu próprio perfil
     const isOwnProfile = user?.username === username;
     useEffect(() => {
@@ -29,7 +32,7 @@ const ProfilePage = () => {
                 // Busca os detalhes do perfil
                 const profileRes = await axios.get(`http://localhost:8000/api/users/${username}/`);
                 setProfileData(profileRes.data);
-
+                setIsFollowing(profileRes.data.profile.is_following);
                 // Busca os posts do usuário
                 const postsRes = await axios.get(`http://localhost:8000/api/posts/?owner__username=${username}`, {
                     headers: { 'Authorization': `Bearer ${authTokens.access}` }
@@ -44,6 +47,32 @@ const ProfilePage = () => {
 
         fetchProfileData();
     }, [username, authTokens]);
+
+
+    const handleFollowToggle = async () => {
+        const method = isFollowing ? 'delete' : 'post';
+        try {
+            await axios({
+                method: method,
+                url: `http://localhost:8000/api/users/${username}/follow/`,
+                headers: { 'Authorization': `Bearer ${authTokens.access}` }
+            });
+            // Atualiza o estado local para o botão e contagem (atualização otimista)
+            setIsFollowing(!isFollowing);
+            setProfileData(prevData => ({
+                ...prevData,
+                profile: {
+                    ...prevData.profile,
+                    followers_count: isFollowing ? prevData.profile.followers_count - 1 : prevData.profile.followers_count + 1
+                }
+            }));
+            toast.success(isFollowing ? "Deixou de seguir" : "Seguindo!");
+        } catch (error) {
+            console.error("Erro ao seguir/deixar de seguir", error);
+            toast.error("Ocorreu um erro.");
+        }
+    };
+
 
     const handleAvatarClick = () => {
         if (isOwnProfile) {
@@ -71,7 +100,7 @@ const ProfilePage = () => {
     }
 
     // Os dados agora estão em profileData.profile
-    const { bio, profile_pic } = profileData.profile || {}
+    const { bio, profile_pic, followers_count, following_count } = profileData.profile || {}
 
 
 
@@ -89,10 +118,31 @@ const ProfilePage = () => {
                             </div>
                             <h2 className="card-title text-3xl mt-4">{profileData.username}</h2>
                             <p className="text-base-content/70">{bio || (isOwnProfile && "Adicione uma bio para se apresentar!")}</p>
-                            {isOwnProfile && (
-                                <div className="card-actions mt-2">
-                                    <button className="btn btn-primary btn-sm" onClick={() => setIsEditProfileOpen(true)}>Editar Perfil</button>
-                                </div>
+                            <div className="stats stats-horizontal shadow mt-4">
+                            <div className="stat">
+                                <div className="stat-title">Posts</div>
+                                <div className="stat-value">{posts.length}</div>
+                            </div>
+                            <div className="stat">
+                                <div className="stat-title">Seguidores</div>
+                                <div className="stat-value">{followers_count}</div>
+                            </div>
+                            <div className="stat">
+                                <div className="stat-title">Seguindo</div>
+                                <div className="stat-value">{following_count}</div>
+                            </div>
+                        </div>
+                            
+                            
+                            {isOwnProfile ? (
+                                <button className="btn btn-primary btn-sm" onClick={() => setIsEditProfileOpen(true)}>Editar Perfil</button>
+                            ) : (
+                                <button 
+                                    className={`btn btn-sm ${isFollowing ? 'btn-outline' : 'btn-primary'}`}
+                                    onClick={handleFollowToggle}
+                                >
+                                    {isFollowing ? "Deixar de Seguir" : "Seguir"}
+                                </button>
                             )}
                         </div>
                     </div>

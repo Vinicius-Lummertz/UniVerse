@@ -1,14 +1,15 @@
 # core/views.py
 
-from rest_framework import generics, permissions
-from .models import Posts
-from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer
+from rest_framework import generics, permissions, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .models import Posts, Profile
+from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer
 from django.contrib.auth.models import User 
 from .permissions import IsOwnerOrReadOnly
-from rest_framework_simplejwt.views import TokenObtainPairView
 from django_filters.rest_framework import DjangoFilterBackend 
-from .models import Profile
-from .serializers import ProfileSerializer
+
 
 
 # --- VIEW DE LISTA E CRIAÇÃO ---
@@ -55,3 +56,48 @@ class UserDetailView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = 'username'
+
+    def get_serializer_context(self):
+        # Passa o 'request' para o ProfileSerializer
+        return {'request': self.request}
+    
+
+class FollowUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        try:
+            user_to_follow = User.objects.get(username=username)
+            profile_to_follow = user_to_follow.profile
+            current_user_profile = request.user.profile
+
+            if current_user_profile == profile_to_follow:
+                return Response({"error": "Você não pode seguir a si mesmo."}, status=status.HTTP_400_BAD_REQUEST)
+
+            current_user_profile.following.add(profile_to_follow)
+            return Response({"status": "seguindo"}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, username):
+        try:
+            user_to_unfollow = User.objects.get(username=username)
+            profile_to_unfollow = user_to_unfollow.profile
+            current_user_profile = request.user.profile
+
+            current_user_profile.following.remove(profile_to_unfollow)
+            return Response({"status": "deixou de seguir"}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+# NOVA VIEW para a timeline de quem você segue
+class FollowingPostsFeedView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # Filtra perfis que o usuário logado segue
+        following_profiles = user.profile.following.all()
+        # Filtra posts onde o 'owner' (User) tem um 'profile' que está na lista de 'following_profiles'
+        return Posts.objects.filter(owner__profile__in=following_profiles).order_by('-createdAt')

@@ -1,6 +1,6 @@
 // src/components/BottomNav.jsx
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiHome, FiUser, FiMessageSquare, FiUsers } from 'react-icons/fi';
 import AuthContext from '../context/AuthContext';
 import { useContext } from 'react';
 
@@ -26,7 +26,10 @@ const BottomNav = () => {
                     <FiHome size={24} />
                     <span className="text-xs">Home</span>
                 </NavLink>
-
+                <NavLink to="/following" className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
+                    <FiUsers size={20} />
+                    <span className="btm-nav-label">Seguindo</span>
+                </NavLink>
                 <NavLink to="/chat" className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
                     <FiMessageSquare size={24} />
                     <span className="text-xs">Chat</span>

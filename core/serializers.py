@@ -13,14 +13,36 @@ class PostSerializer(serializers.ModelSerializer):
         fields = ['pk', 'owner', 'title', 'image', 'content', 'createdAt', 'updatedAt']
 
 class ProfileSerializer(serializers.ModelSerializer):
+    
+    followers_count = serializers.SerializerMethodField(read_only=True)
+    following_count = serializers.SerializerMethodField(read_only=True)
+    # Novo campo para saber se o usuário logado segue este perfil
+    is_following = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = Profile
-        fields = ['bio', 'profile_pic']
+        fields = ['bio', 'profile_pic', 'followers_count', 'following_count', 'is_following']
+    
+    def get_followers_count(self, obj):
+        return obj.followers.count()
+
+    def get_following_count(self, obj):
+        return obj.following.count()
+
+    def get_is_following(self, obj):
+        # Pega o usuário logado (request.user) do "contexto" do serializer
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        # Checa se o usuário logado está na lista de seguidores do perfil (obj)
+        return obj.followers.filter(user=request.user).exists()
+
+
 
 
 class UserSerializer(serializers.ModelSerializer):
 
-    profile = ProfileSerializer()
+    profile = ProfileSerializer(read_only=True)
 
     class Meta:
         model = User
