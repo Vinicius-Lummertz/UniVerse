@@ -8,10 +8,12 @@ import BottomNav from '../components/BottomNav';
 import ImageViewModal from '../components/ImageViewModal';
 import EditProfileModal from '../components/EditProfileModal';
 import toast from 'react-hot-toast'; 
+import ConfirmationModal from '../components/ConfirmationModal';
+
 
 const ProfilePage = () => {
     const { username } = useParams();
-    const { authTokens, user } = useContext(AuthContext); // Pega o usuário logado
+    const { authTokens, user, logoutUser } = useContext(AuthContext); // Pega o usuário logado
 
     const [profileData, setProfileData] = useState(null); // Agora guarda o objeto User + Profile
     const [posts, setPosts] = useState([]);
@@ -22,6 +24,8 @@ const ProfilePage = () => {
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
     const [isFollowing, setIsFollowing] = useState(false);
+
+    const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
 
     // Checa se o usuário logado está vendo o seu próprio perfil
     const isOwnProfile = user?.username === username;
@@ -89,6 +93,27 @@ const ProfilePage = () => {
             profile: { ...prevData.profile, ...updatedProfileData }
         }));
     };
+
+    const handleAccountDelete = async () => {
+            const promise = axios.delete('http://localhost:8000/api/profile/delete/', {
+                 headers: { 'Authorization': `Bearer ${authTokens.access}` }
+            });
+
+            toast.promise(promise, {
+                loading: 'Excluindo sua conta...',
+                success: 'Conta excluída com sucesso. Adeus!',
+                error: 'Não foi possível excluir sua conta.'
+            });
+
+            try {
+                await promise;
+                setIsDeleteAccountOpen(false); // Fecha o modal de confirmação
+                logoutUser(); // Desloga o usuário
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
 
 
     if (loading) {
@@ -179,8 +204,19 @@ const ProfilePage = () => {
                     onClose={() => setIsEditProfileOpen(false)}
                     profile={profileData.profile}
                     onProfileUpdate={handleProfileUpdate}
+                    onOpenDeleteConfirm={() => {
+                        setIsEditProfileOpen(false); // Fecha o modal de edição
+                        setIsDeleteAccountOpen(true); // Abre o modal de confirmação
+                    }}
                 />
             )}
+            <ConfirmationModal
+                isOpen={isDeleteAccountOpen}
+                onClose={() => setIsDeleteAccountOpen(false)}
+                onConfirm={handleAccountDelete}
+                title="Excluir Conta Permanentemente"
+                message="Você tem certeza? Esta ação não pode ser desfeita. Todos os seus posts, seguidores e dados de perfil serão apagados para sempre."
+            />
         </>
     );
 };

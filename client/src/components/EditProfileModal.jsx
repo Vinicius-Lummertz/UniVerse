@@ -4,7 +4,7 @@ import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate }) => {
+const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate, onOpenDeleteConfirm }) => {
     const [bio, setBio] = useState('');
     const [profilePic, setProfilePic] = useState(null);
     const { authTokens } = useContext(AuthContext);
@@ -62,9 +62,14 @@ const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate }) => {
                         <label className="label"><span className="label-text">Foto de Perfil</span></label>
                         <input type="file" onChange={(e) => setProfilePic(e.target.files[0])} className="file-input file-input-bordered" />
                     </div>
-                    <div className="modal-action mt-6">
-                        <button type="button" className="btn" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary">Salvar</button>
+                    <div className="modal-action mt-6 justify-between">
+                        <button type="button" className="btn btn-error btn-outline" onClick={onOpenDeleteConfirm}>
+                            Excluir Conta
+                        </button>
+                        <div>
+                            <button type="button" className="btn mr-2" onClick={onClose}>Cancelar</button>
+                            <button type="submit" className="btn btn-primary">Salvar</button>
+                        </div>
                     </div>
                 </form>
             </div>

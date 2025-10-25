@@ -101,3 +101,10 @@ class FollowingPostsFeedView(generics.ListAPIView):
         following_profiles = user.profile.following.all()
         # Filtra posts onde o 'owner' (User) tem um 'profile' que está na lista de 'following_profiles'
         return Posts.objects.filter(owner__profile__in=following_profiles).order_by('-createdAt')
+    
+class UserDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        
+        return self.request.user

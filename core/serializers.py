@@ -37,9 +37,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         # Checa se o usuário logado está na lista de seguidores do perfil (obj)
         return obj.followers.filter(user=request.user).exists()
 
-
-
-
 class UserSerializer(serializers.ModelSerializer):
 
     profile = ProfileSerializer(read_only=True)
@@ -59,8 +56,6 @@ class UserSerializer(serializers.ModelSerializer):
 
         return user
 
-
-
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -73,3 +68,16 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # ... outros campos do usuário
 
         return token
+    
+class ProfileSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['profile_pic']
+
+# NOVO Serializer para a busca de User
+class UserSearchSerializer(serializers.ModelSerializer):
+    profile = ProfileSearchSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'profile']
