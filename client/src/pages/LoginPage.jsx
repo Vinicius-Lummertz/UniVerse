@@ -17,10 +17,9 @@ const LoginPage = () => {
 
 return (
         // 1. Adicione a classe 'relative' aqui. Ela vai servir de "âncora" para a nossa camada.
-        <div className="relative flex items-center justify-center h-screen bg-planets bg-cover bg-center bg-no-repeat">
-            
+            <div className="relative flex items-center justify-center h-screen bg-[url(/planets.png)] bg-no-repeat bg-cover bg-center">            
             {/* 2. Esta é a nossa camada de escurecimento. Ela não tem conteúdo, só estilo. */}
-            <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+            <div className="absolute inset-0 bg-opacity-50"></div>
 
             {/* 3. Adicione 'relative' e 'z-10' ao formulário para que ele fique ACIMA da camada de escurecimento. */}
             <form onSubmit={handleSubmit} className="relative z-10 p-8 bg-white/10 backdrop-blur-md rounded-lg shadow-xl w-96 border border-white/20">
