@@ -1,26 +1,34 @@
 // src/components/ConfirmationModal.jsx
+import { useEffect, useRef } from "react"; // 1. Import useEffect
+
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
-    if (!isOpen) return null;
+    
+    const modalRef = useRef(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            modalRef.current?.showModal(); 
+        } else {
+            modalRef.current?.close();
+        }
+    }, [isOpen]); 
+
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm mx-4">
-                <h3 className="text-xl font-bold mb-4">{title}</h3>
-                <p className="text-gray-600 mb-6">{message}</p>
-                <div className="flex justify-end gap-4">
-                    <button 
-                        onClick={onClose} 
-                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
-                        Cancelar
-                    </button>
-                    <button 
-                        onClick={onConfirm} 
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                        Confirmar Exclusão
-                    </button>
+        <dialog ref={modalRef} className="modal">
+            <div className="modal-box">
+                <h3 className="font-bold text-lg">{title}</h3>
+                <p className="py-4">{message}</p>
+                <div className="modal-action">
+                    <button className="btn" onClick={onClose}>Cancelar</button>
+                    <button className="btn btn-error" onClick={onConfirm}>Confirmar</button>
                 </div>
             </div>
-        </div>
+            {/* Clicar fora fecha o modal */}
+            <form method="dialog" className="modal-backdrop">
+                <button onClick={onClose}>close</button>
+            </form>
+        </dialog>
     );
 };
 

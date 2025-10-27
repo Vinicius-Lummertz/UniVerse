@@ -16,8 +16,9 @@ const HomePage = () => {
     const [posts, setPosts] = useState([]);
     const { authTokens, logoutUser, user } = useContext(AuthContext);
     const [isModalOpen, setIsModalOpen] = useState(false); 
+    
     const [editingPost, setEditingPost] = useState(null); 
-     const [postToDelete, setPostToDelete] = useState(null);    
+    const [postToDelete, setPostToDelete] = useState(null);    
 
     const getPosts = useCallback(async () => {
         try {
@@ -126,13 +127,14 @@ const openDeleteModal = (postId) => {
                 <FiPlus size={24} />
             </button>
 
-            {isModalOpen && (
+            
                 <CreatePostModal
+                    isOpen={isModalOpen}
                     onClose={handleCloseModal}
                     onPostCreated={getPosts}
                     postToEdit={editingPost}
                 />
-            )}
+            
 
             <ConfirmationModal 
                 isOpen={!!postToDelete}

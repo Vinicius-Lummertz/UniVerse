@@ -49,25 +49,38 @@ const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate, onOpenDel
         }
     };
 
-    return (
+return (
         <dialog ref={modalRef} className="modal">
             <div className="modal-box">
                 <h3 className="font-bold text-lg">Editar Perfil</h3>
-                <form onSubmit={handleSubmit} className="py-4">
+                <form onSubmit={handleSubmit} className="py-4 space-y-4"> 
+                    {/* Textarea de Bio */}
                     <div className="form-control">
                         <label className="label"><span className="label-text">Bio</span></label>
-                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} className="textarea textarea-bordered h-24"></textarea>
+                        <textarea
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            className="textarea textarea-bordered h-24"
+                        ></textarea>
                     </div>
-                    <div className="form-control mt-4">
+                    {/* Input de Foto de Perfil */}
+                    <div className="form-control">
                         <label className="label"><span className="label-text">Foto de Perfil</span></label>
-                        <input type="file" onChange={(e) => setProfilePic(e.target.files[0])} className="file-input file-input-bordered" />
+                        <input
+                            type="file"
+                            onChange={(e) => setProfilePic(e.target.files[0])}
+                            className="file-input file-input-bordered w-full" // Garante w-full
+                        />
                     </div>
+                    {/* Ações do Modal */}
                     <div className="modal-action mt-6 justify-between">
+                        {/* Botão Excluir Conta */}
                         <button type="button" className="btn btn-error btn-outline" onClick={onOpenDeleteConfirm}>
                             Excluir Conta
                         </button>
-                        <div>
-                            <button type="button" className="btn mr-2" onClick={onClose}>Cancelar</button>
+                        {/* Botões Cancelar/Salvar */}
+                        <div className='space-x-2'> {/* Adiciona espaço entre botões */}
+                            <button type="button" className="btn" onClick={onClose}>Cancelar</button>
                             <button type="submit" className="btn btn-primary">Salvar</button>
                         </div>
                     </div>
