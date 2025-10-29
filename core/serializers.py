@@ -2,15 +2,57 @@ from rest_framework import serializers
 from .models import Posts
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Profile 
+from .models import Profile, Comment, Reaction
+
+
+class ReactionSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Reaction
+        fields = ['id', 'user', 'emoji', 'created_at']
+
+class CommentSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+    # Opcional: Adicionar foto do perfil do usuário do comentário
+    # user_profile_pic = serializers.ImageField(source='user.profile.profile_pic', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'user', 'content', 'created_at', 'updated_at'] # Adicione user_profile_pic se desejar
 
 class PostSerializer(serializers.ModelSerializer):
-    
     owner = serializers.ReadOnlyField(source='owner.username')
-    
+    # Aninha os comentários (apenas leitura)
+    comments = CommentSerializer(many=True, read_only=True)
+    # Campo para contagem de reações e se o usuário atual reagiu
+    reactions_summary = serializers.SerializerMethodField(read_only=True)
+    current_user_reaction = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Posts
-        fields = ['pk', 'owner', 'title', 'image', 'content', 'createdAt', 'updatedAt']
+        fields = [
+            'pk', 'owner', 'title', 'content', 'image', 'createdAt', 'updatedAt',
+            'comments', 'reactions_summary', 'current_user_reaction'
+        ]
+
+    def get_reactions_summary(self, obj):
+        # Agrupa reações por emoji e conta
+        summary = {}
+        reactions = obj.reactions.all()
+        for reaction in reactions:
+            summary[reaction.emoji] = summary.get(reaction.emoji, 0) + 1
+        return summary
+
+    def get_current_user_reaction(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                reaction = obj.reactions.get(user=request.user)
+                return ReactionSerializer(reaction).data
+            except Reaction.DoesNotExist:
+                return None
+        return None
 
 class ProfileSerializer(serializers.ModelSerializer):
     
@@ -81,3 +123,4 @@ class UserSearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'profile']
+

@@ -4,59 +4,50 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode'; // Instale com: npm install jwt-decode
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast'; // Importe o toast
+import axiosInstance from '../utils/axiosInstance';
 
 const AuthContext = createContext();
 export default AuthContext;
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://192.168.15.164:8000/';
 
 export const AuthProvider = ({ children }) => {
     const [authTokens, setAuthTokens] = useState(() => localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null);
     const [user, setUser] = useState(() => localStorage.getItem('authTokens') ? jwtDecode(localStorage.getItem('authTokens')) : null);
     const navigate = useNavigate();
 
-    const loginUser = async (username, password) => {
+const loginUser = async (username, password) => {
         try {
-            // 1. Pega os Tokens
-            const tokenResponse = await axios.post(`${API_URL}/api/token/`, { username, password });
+            // 3. Use axiosInstance para o login (já inclui baseURL)
+            const tokenResponse = await axiosInstance.post(`/api/token/`, { username, password });
             const tokenData = tokenResponse.data;
             setAuthTokens(tokenData);
             localStorage.setItem('authTokens', JSON.stringify(tokenData));
 
-            // 2. Decodifica o token para pegar o username (se já não tiver)
             const decodedToken = jwtDecode(tokenData.access);
             const loggedInUsername = decodedToken.username;
 
-            // 3. Busca os dados completos do Usuário/Perfil
-            try {
-                const userResponse = await axios.get(`${API_URL}/api/users/${loggedInUsername}/`, {
-                     headers: { 'Authorization': `Bearer ${tokenData.access}` }
-                });
-                const fullUserData = userResponse.data;
-                setUser(fullUserData); // Salva o objeto User completo (com profile aninhado)
-                localStorage.setItem('userInfo', JSON.stringify(fullUserData)); // Salva no localStorage
-                 
-                navigate('/');
-                toast.success('Login efetuado com sucesso!');
+            const userResponse = await axiosInstance.get(`/api/users/${loggedInUsername}/`);
+            const fullUserData = userResponse.data;
+            setUser(fullUserData);
+            localStorage.setItem('userInfo', JSON.stringify(fullUserData));
 
-            } catch (profileError) {
-                console.error("Erro ao buscar dados do perfil após login!", profileError);
-                // Mesmo com erro no perfil, o login funcionou. Salva dados básicos do token.
-                setUser(decodedToken); 
-                localStorage.setItem('userInfo', JSON.stringify(decodedToken)); // Salva dados básicos
-                navigate('/'); // Ou talvez para uma página de erro/configuração?
-                toast.error("Login efetuado, mas houve erro ao carregar o perfil.");
-            }
+            navigate('/');
+            toast.success('Login efetuado com sucesso!');
 
         } catch (loginError) {
-            console.error("Erro no login!", loginError);
-            toast.error("Usuário ou senha inválidos!");
+             console.error("Erro no login!", loginError);
+             if (loginError.response && loginError.response.status === 401) {
+                 toast.error("Usuário ou senha inválidos!");
+             } else {
+                 toast.error("Ocorreu um erro no login.");
+             }
         }
     };
 
     const registerUser = async (username, email, password) => {
         try {
-            const response = await axios.post(`${API_URL}/api/register/`, {
+            const response = await axiosInstance.post(`/api/register/`, {
                 username,
                 email,
                 password
@@ -91,6 +82,7 @@ export const AuthProvider = ({ children }) => {
          if (storedTokens) {
              setAuthTokens(JSON.parse(storedTokens));
          }
+        setLoading(false); // Apenas seta loading para false
      }, []);
 
     return (

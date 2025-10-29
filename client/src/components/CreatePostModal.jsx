@@ -52,34 +52,23 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
 
     const isEditMode = Boolean(postToEdit);
     const url = isEditMode
-        ? `http://localhost:8000/api/posts/${postToEdit.pk}/`
-        : 'http://localhost:8000/api/posts/';
+        ? `/api/posts/${postToEdit.pk}/`
+        : '/api/posts/';
     
-    // Para edição, o método PUT substitui o objeto inteiro. Se você não enviar uma imagem, 
-    // a imagem existente pode ser removida. O método PATCH é melhor para atualizações parciais,
-    // mas PUT funcionará com nosso setup. Usaremos 'put' por enquanto.
     const method = isEditMode ? 'put' : 'post';
 
-    // 2. Cria a promise da requisição, passando o formData
     const promise = axios({
         method: method,
         url: url,
-        data: formData, // <-- A CORREÇÃO PRINCIPAL: Enviando o formData
-        headers: {
-            'Authorization': `Bearer ${authTokens.access}`,
-            // Não é necessário definir 'Content-Type': 'multipart/form-data'. 
-            // O Axios faz isso automaticamente quando você passa um FormData.
-        }
+        data: formData, 
     });
 
-    // 3. Usa o toast.promise para dar feedback ao usuário
     toast.promise(promise, {
         loading: 'Salvando seu post...',
         success: `Post ${isEditMode ? 'atualizado' : 'criado'} com sucesso!`,
         error: 'Ocorreu um erro ao salvar seu post.',
     });
 
-    // 4. Aguarda a promise ser resolvida para executar as ações de sucesso
     try {
         await promise;
         onPostCreated(); // Atualiza a timeline
