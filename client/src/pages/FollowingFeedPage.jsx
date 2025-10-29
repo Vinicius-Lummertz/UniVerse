@@ -1,15 +1,45 @@
 // src/pages/FollowingFeedPage.jsx
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useCallback } from 'react';
 import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
 import Navbar from '../components/NavBar';
 import axiosInstance from '../utils/axiosInstance';
+import { Link } from 'react-router-dom';
+import Reactions from '../components/Reactions'
+import CommentForm from '../components/CommentForm'
+import CommentList from '../components/CommentList'
+import { FiPlus, FiTrash2, FiEdit3 } from 'react-icons/fi';
+import CreatePostModal from '../components/CreatePostModal'; 
+import ConfirmationModal from '../components/ConfirmationModal'; 
+
 
 const FollowingFeedPage = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { authTokens } = useContext(AuthContext);
+    const { user, authTokens } = useContext(AuthContext);
+    const [isModalOpen, setIsModalOpen] = useState(false); 
+    const [editingPost, setEditingPost] = useState(null); 
+    const [postToDelete, setPostToDelete] = useState(null);    
+
+
+    const getPosts = useCallback(async () => {
+        setLoading(true); // Opcional: Adicionar estado de loading
+        try {
+            // 3. Use axiosInstance (sem URL base e sem headers)
+            const response = await axiosInstance.get('/api/posts/');
+            setPosts(response.data);
+        } catch (error) {
+            console.error("Erro ao buscar posts", error);
+            // O interceptor já trata o 401, então não precisamos chamar logoutUser() aqui
+            // Você pode querer mostrar um toast de erro genérico se a busca falhar por outro motivo
+             if (error.response?.status !== 401) { // Só mostra erro se não for erro de autenticação
+                 toast.error("Não foi possível carregar os posts.");
+             }
+        } finally {
+             setLoading(false); // Opcional
+        }
+    }, []);
 
     useEffect(() => {
         const getFollowingPosts = async () => {
@@ -29,6 +59,37 @@ const FollowingFeedPage = () => {
     if (loading) {
         return <div className="flex justify-center items-center h-screen"><span className="loading loading-spinner loading-lg"></span></div>;
     }
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingPost(null);
+    };
+
+    const closeDeleteModal = () => {
+        setPostToDelete(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!postToDelete) return;
+
+        const promise = axiosInstance.delete(`/api/posts/${postToDelete}/`, {
+            headers: { 'Authorization': `Bearer ${authTokens.access}` }
+        });
+
+        toast.promise(promise, {
+            loading: 'Excluindo post...',
+            success: 'Post excluído com sucesso!',
+            error: 'Não foi possível excluir o post.'
+        });
+
+        promise.then(() => {
+            setPosts(posts.filter(p => p.pk !== postToDelete));
+            closeDeleteModal();
+        }).catch(err => {
+            console.error(err);
+            closeDeleteModal();
+        });
+    };
 
     return (
         <div className="pb-20">
