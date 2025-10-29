@@ -9,6 +9,7 @@ import ImageViewModal from '../components/ImageViewModal';
 import EditProfileModal from '../components/EditProfileModal';
 import toast from 'react-hot-toast'; 
 import ConfirmationModal from '../components/ConfirmationModal';
+import axiosInstance from '../utils/axiosInstance';
 
 
 const ProfilePage = () => {
@@ -56,12 +57,11 @@ const ProfilePage = () => {
     const handleFollowToggle = async () => {
         const method = isFollowing ? 'delete' : 'post';
         try {
-            await axios({
+            await axiosInstance({
                 method: method,
-                url: `http://192.168.15.164:8000//api/users/${username}/follow/`,
-                headers: { 'Authorization': `Bearer ${authTokens.access}` }
+                url: `/api/users/${username}/follow/`
             });
-            // Atualiza o estado local para o botão e contagem (atualização otimista)
+            
             setIsFollowing(!isFollowing);
             setProfileData(prevData => ({
                 ...prevData,

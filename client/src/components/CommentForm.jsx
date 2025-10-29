@@ -1,20 +1,17 @@
 // src/components/CommentForm.jsx
 import { useState, useContext } from 'react';
-import axios from 'axios';
-import AuthContext from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import axiosInstance from '../utils/axiosInstance';
 
 const CommentForm = ({ postId, onCommentAdded }) => {
     const [content, setContent] = useState('');
-    const { authTokens } = useContext(AuthContext);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!content.trim()) return;
 
-        const promise = axios.post(`${import.meta.env.VITE_API_URL || 'http://192.168.15.164:8000'}/api/posts/${postId}/comments/`,
+        const promise = axiosInstance.post(`/api/posts/${postId}/comments/`,
             { content },
-            { headers: { 'Authorization': `Bearer ${authTokens.access}` } }
         );
 
         toast.promise(promise, {

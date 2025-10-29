@@ -4,12 +4,10 @@ import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import ThemeSwitcher from './ThemeSwitcher';
 import SearchUser from './SearchUser'; // Importa o componente refatorado
-import { FiSearch } from 'react-icons/fi';
 
 const Navbar = () => {
     const { user, logoutUser } = useContext(AuthContext);
     // Estado para controlar se a busca está visível
-    const [isSearchVisible, setIsSearchVisible] = useState(false);
 
     const profilePicUrl = user?.profile?.profile_pic || '/default-avatar.png';
     const username = user?.username;

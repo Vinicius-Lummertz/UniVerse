@@ -1,10 +1,10 @@
 // src/components/SearchUser.jsx
 import { useState, useEffect, useContext, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import useDebounce from '../hooks/useDebounce';
 import { FiSearch, FiX } from 'react-icons/fi';
+import axiosInstance from '../utils/axiosInstance';
 
 const SearchUser = () => {
     // Estado para controlar se o INPUT está visível
@@ -38,7 +38,7 @@ const SearchUser = () => {
                 return;
             }
             try {
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://192.168.15.164:8000/'}/api/users/search/?q=${debouncedQuery}`, {
+                const response = await axiosInstance.get(`/api/users/search/?q=${debouncedQuery}`, {
                     headers: { 'Authorization': `Bearer ${authTokens.access}` }
                 });
                 console.log(response.data)

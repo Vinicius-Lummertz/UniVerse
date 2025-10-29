@@ -1,8 +1,8 @@
 // src/components/Reactions.jsx
 import { useState, useContext } from 'react';
-import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import axiosInstance from '../utils/axiosInstance';
 
 // Emojis permitidos
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
@@ -49,10 +49,9 @@ const Reactions = ({ postId, initialReactionsSummary, initialUserReaction }) => 
 
         // Chamada API
         try {
-            const response = await axios.post(
-                `${import.meta.env.VITE_API_URL || 'http://192.168.15.164:8000'}/api/posts/${postId}/react/`,
+            const response = await axiosInstance.post(
+                `/api/posts/${postId}/react/`,
                 { emoji },
-                { headers: { 'Authorization': `Bearer ${authTokens.access}` } }
             );
             // Atualiza o estado com a resposta real da API (incluindo ID correto, se necessário)
             // Se a API retornar 204 (No Content) para delete, ajusta o estado

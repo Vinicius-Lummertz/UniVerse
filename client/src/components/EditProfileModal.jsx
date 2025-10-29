@@ -1,13 +1,12 @@
 // src/components/EditProfileModal.jsx
 import { useState, useEffect, useContext, useRef } from 'react';
-import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import axiosInstance from '../utils/axiosInstance';
 
 const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate, onOpenDeleteConfirm }) => {
     const [bio, setBio] = useState('');
     const [profilePic, setProfilePic] = useState(null);
-    const { authTokens } = useContext(AuthContext);
     const modalRef = useRef(null);
 
     useEffect(() => {
@@ -27,11 +26,7 @@ const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate, onOpenDel
             formData.append('profile_pic', profilePic);
         }
 
-        const promise = axios.patch('http://192.168.15.164:8000/api/profile/', formData, {
-            headers: {
-                'Authorization': `Bearer ${authTokens.access}`,
-                'Content-Type': 'multipart/form-data',
-            }
+        const promise = axiosInstance.patch('/api/profile/', formData, {
         });
 
         toast.promise(promise, {

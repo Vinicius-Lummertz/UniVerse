@@ -10,6 +10,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import Reactions from '../components/Reactions'
 import CommentForm from '../components/CommentForm'
 import CommentList from '../components/CommentList'
+import axiosInstance from '../utils/axiosInstance';
 import toast from 'react-hot-toast'; 
 import Navbar from '../components/NavBar';
 import { Link } from 'react-router-dom';
@@ -24,19 +25,22 @@ const HomePage = () => {
     const [postToDelete, setPostToDelete] = useState(null);    
 
     const getPosts = useCallback(async () => {
+        setLoading(true); // Opcional: Adicionar estado de loading
         try {
-            const response = await axios.get('http://192.168.15.164:8000/api/posts/', {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authTokens.access}`
-                }
-            });
+            // 3. Use axiosInstance (sem URL base e sem headers)
+            const response = await axiosInstance.get('/api/posts/');
             setPosts(response.data);
         } catch (error) {
             console.error("Erro ao buscar posts", error);
-            logoutUser();
+            // O interceptor já trata o 401, então não precisamos chamar logoutUser() aqui
+            // Você pode querer mostrar um toast de erro genérico se a busca falhar por outro motivo
+             if (error.response?.status !== 401) { // Só mostra erro se não for erro de autenticação
+                 toast.error("Não foi possível carregar os posts.");
+             }
+        } finally {
+             setLoading(false); // Opcional
         }
-    }, [authTokens, logoutUser]);
+    }, []);
 
     useEffect(() => {
         getPosts();
@@ -53,7 +57,7 @@ const openDeleteModal = (postId) => {
     const confirmDelete = async () => {
         if (!postToDelete) return;
 
-        const promise = axios.delete(`http://192.168.15.164:8000/api/posts/${postToDelete}/`, {
+        const promise = axiosInstance.delete(`/api/posts/${postToDelete}/`, {
             headers: { 'Authorization': `Bearer ${authTokens.access}` }
         });
 
