@@ -21,7 +21,6 @@ const BottomNav = () => {
         <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200">
             <div className="flex justify-around max-w-md mx-auto">
                 
-                {/* 2. Use NavLink e passe uma função para a className */}
                 <NavLink to="/" end className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
                     <FiHome size={24} />
                     <span className="text-xs">Home</span>

@@ -35,11 +35,11 @@ const ProfilePage = () => {
             setLoading(true);
             try {
                 // Busca os detalhes do perfil
-                const profileRes = await axios.get(`http://192.168.15.164:8000/api/users/${username}/`);
+                const profileRes = await axiosInstance.get(`/api/users/${username}/`);
                 setProfileData(profileRes.data);
                 setIsFollowing(profileRes.data.profile.is_following);
                 // Busca os posts do usuário
-                const postsRes = await axios.get(`http://192.168.15.164:8000/api/posts/?owner__username=${username}`, {
+                const postsRes = await axiosInstance.get(`/api/posts/?owner__username=${username}`, {
                     headers: { 'Authorization': `Bearer ${authTokens.access}` }
                 });
                 setPosts(postsRes.data);

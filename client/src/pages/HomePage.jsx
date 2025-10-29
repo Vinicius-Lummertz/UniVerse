@@ -24,6 +24,8 @@ const HomePage = () => {
     const [editingPost, setEditingPost] = useState(null); 
     const [postToDelete, setPostToDelete] = useState(null);    
 
+    const [loading, setLoading] = useState('')
+
     const getPosts = useCallback(async () => {
         setLoading(true); // Opcional: Adicionar estado de loading
         try {

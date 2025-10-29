@@ -9,10 +9,11 @@ const CommentList = ({ comments }) => {
     return (
         <div className="mt-4 space-y-3">
             {comments.map(comment => (
+                
                 <div key={comment.id} className="chat chat-start"> {/* Use chat bubbles */}
                     <div className="chat-image avatar avatar-xs placeholder">
-                       <div className="w-6 rounded-full">
-                           <img src={comment.user_profile_pic || '/avatar-default.svg'} />
+                       <div className="w-12 rounded-full">
+                           <img className='object-cover' src={comment.user_profile_pic || '/avatar-default.svg'} />
                        </div>
                     </div>
                     <div className="chat-header text-xs opacity-50">

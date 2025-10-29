@@ -9,11 +9,12 @@ import axiosInstance from '../utils/axiosInstance';
 const AuthContext = createContext();
 export default AuthContext;
 
-const API_URL = 'http://192.168.15.164:8000/';
+
 
 export const AuthProvider = ({ children }) => {
     const [authTokens, setAuthTokens] = useState(() => localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null);
     const [user, setUser] = useState(() => localStorage.getItem('authTokens') ? jwtDecode(localStorage.getItem('authTokens')) : null);
+    const [loading, setLoading] = useState('')
     const navigate = useNavigate();
 
 const loginUser = async (username, password) => {

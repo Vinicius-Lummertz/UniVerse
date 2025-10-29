@@ -14,12 +14,11 @@ class ReactionSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
-    # Opcional: Adicionar foto do perfil do usuário do comentário
-    # user_profile_pic = serializers.ImageField(source='user.profile.profile_pic', read_only=True)
+    user_profile_pic = serializers.ImageField(source='user.profile.profile_pic', read_only=True)
 
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'content', 'created_at', 'updated_at'] # Adicione user_profile_pic se desejar
+        fields = ['id', 'user', 'content', 'created_at', 'updated_at', 'user_profile_pic'] 
 
 class PostSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
