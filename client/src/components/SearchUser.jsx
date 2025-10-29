@@ -38,7 +38,7 @@ const SearchUser = () => {
                 return;
             }
             try {
-                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/users/search/?q=${debouncedQuery}`, {
+                const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://192.168.15.164:8000/'}/api/users/search/?q=${debouncedQuery}`, {
                     headers: { 'Authorization': `Bearer ${authTokens.access}` }
                 });
                 console.log(response.data)

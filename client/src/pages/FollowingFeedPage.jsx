@@ -14,7 +14,7 @@ const FollowingFeedPage = () => {
         const getFollowingPosts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://localhost:8000/api/feed/following/', {
+                const response = await axios.get('http://192.168.15.164:8000/api/feed/following/', {
                     headers: { 'Authorization': `Bearer ${authTokens.access}` }
                 });
                 setPosts(response.data);

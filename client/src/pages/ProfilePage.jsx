@@ -34,11 +34,11 @@ const ProfilePage = () => {
             setLoading(true);
             try {
                 // Busca os detalhes do perfil
-                const profileRes = await axios.get(`http://localhost:8000/api/users/${username}/`);
+                const profileRes = await axios.get(`http://192.168.15.164:8000/api/users/${username}/`);
                 setProfileData(profileRes.data);
                 setIsFollowing(profileRes.data.profile.is_following);
                 // Busca os posts do usuário
-                const postsRes = await axios.get(`http://localhost:8000/api/posts/?owner__username=${username}`, {
+                const postsRes = await axios.get(`http://192.168.15.164:8000/api/posts/?owner__username=${username}`, {
                     headers: { 'Authorization': `Bearer ${authTokens.access}` }
                 });
                 setPosts(postsRes.data);
@@ -58,7 +58,7 @@ const ProfilePage = () => {
         try {
             await axios({
                 method: method,
-                url: `http://localhost:8000/api/users/${username}/follow/`,
+                url: `http://192.168.15.164:8000//api/users/${username}/follow/`,
                 headers: { 'Authorization': `Bearer ${authTokens.access}` }
             });
             // Atualiza o estado local para o botão e contagem (atualização otimista)
@@ -95,7 +95,7 @@ const ProfilePage = () => {
     };
 
     const handleAccountDelete = async () => {
-            const promise = axios.delete('http://localhost:8000/api/profile/delete/', {
+            const promise = axios.delete('http://192.168.15.164:8000/api/profile/delete/', {
                  headers: { 'Authorization': `Bearer ${authTokens.access}` }
             });
 

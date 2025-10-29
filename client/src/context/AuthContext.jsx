@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'; // Importe o toast
 const AuthContext = createContext();
 export default AuthContext;
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://192.168.15.164:8000/';
 
 export const AuthProvider = ({ children }) => {
     const [authTokens, setAuthTokens] = useState(() => localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null);

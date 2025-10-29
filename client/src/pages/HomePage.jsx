@@ -7,6 +7,9 @@ import AuthContext from '../context/AuthContext';
 import { FiPlus, FiTrash2, FiEdit3 } from 'react-icons/fi';
 import CreatePostModal from '../components/CreatePostModal'; 
 import ConfirmationModal from '../components/ConfirmationModal'; 
+import Reactions from '../components/Reactions'
+import CommentForm from '../components/CommentForm'
+import CommentList from '../components/CommentList'
 import toast from 'react-hot-toast'; 
 import Navbar from '../components/NavBar';
 import { Link } from 'react-router-dom';
@@ -22,7 +25,7 @@ const HomePage = () => {
 
     const getPosts = useCallback(async () => {
         try {
-            const response = await axios.get('http://localhost:8000/api/posts/', {
+            const response = await axios.get('http://192.168.15.164:8000/api/posts/', {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${authTokens.access}`
@@ -50,7 +53,7 @@ const openDeleteModal = (postId) => {
     const confirmDelete = async () => {
         if (!postToDelete) return;
 
-        const promise = axios.delete(`http://localhost:8000/api/posts/${postToDelete}/`, {
+        const promise = axios.delete(`http://192.168.15.164:8000/api/posts/${postToDelete}/`, {
             headers: { 'Authorization': `Bearer ${authTokens.access}` }
         });
 
@@ -116,6 +119,23 @@ const openDeleteModal = (postId) => {
                             <small className="text-gray-400 text-xs mt-3 block">
                                 {new Date(post.createdAt).toLocaleString('pt-BR')}
                             </small>
+                            <Reactions
+                            postId={post.pk}
+                            initialReactionsSummary={post.reactions_summary}
+                            initialUserReaction={post.current_user_reaction}
+                            />
+                            <div className="divider my-1"></div>
+                            <CommentList comments={post.comments} />
+                            <CommentForm
+                                postId={post.pk}
+                                onCommentAdded={(newComment) => {
+                                    setPosts(currentPosts => currentPosts.map(p =>
+                                        p.pk === post.pk
+                                            ? { ...p, comments: [...p.comments, newComment] }
+                                            : p
+                                    ));
+                                }}
+                            />
                         </div>
                     ))}
                 </div>

@@ -52,8 +52,8 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
 
     const isEditMode = Boolean(postToEdit);
     const url = isEditMode
-        ? `http://localhost:8000/api/posts/${postToEdit.pk}/`
-        : 'http://localhost:8000/api/posts/';
+        ? `http://192.168.15.164:8000/api/posts/${postToEdit.pk}/`
+        : 'http://192.168.15.164:8000/api/posts/';
     
     // Para edição, o método PUT substitui o objeto inteiro. Se você não enviar uma imagem, 
     // a imagem existente pode ser removida. O método PATCH é melhor para atualizações parciais,

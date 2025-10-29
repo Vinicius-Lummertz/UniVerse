@@ -25,8 +25,7 @@ SECRET_KEY = 'django-insecure-%f)pvzwi1r*!_mv$q*0y^qpa61im#2a9wo&agz_is0%@o02no5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.15.164', '192.168.25.179']
 
 # Application definition
 
@@ -64,7 +63,8 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173', # A URL do nosso frontend React
+    'http://localhost:5173',
+    'http://192.168.15.164:5173',
 ]
 
 ROOT_URLCONF = 'config.urls'

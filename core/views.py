@@ -4,8 +4,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Posts, Profile
-from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, UserSearchSerializer
+from .models import Posts, Profile, Comment, Reaction
+from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, UserSearchSerializer, CommentSerializer, ReactionSerializer
 from django.contrib.auth.models import User 
 from .permissions import IsOwnerOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend 
@@ -26,6 +26,9 @@ class PostListAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    def get_serializer_context(self): # Adicione este método
+        return {'request': self.request}
+
 # --- VIEW DE DETALHES, EDIÇÃO E EXCLUSÃO ---
 class PostDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Posts.objects.all()
@@ -33,6 +36,9 @@ class PostDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     # CORREÇÃO: É AQUI que precisamos checar se o usuário é o dono do post
     # para poder EDITAR ou DELETAR.
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
+    def get_serializer_context(self): # Adicione este método
+        return {'request': self.request}
 
 class ProfileUpdateView(generics.RetrieveUpdateAPIView):
     queryset = Profile.objects.all()
@@ -125,3 +131,49 @@ class UserDetailView(generics.RetrieveAPIView):
     def get_serializer_context(self):
         # Passa o 'request' para o ProfileSerializer
         return {'request': self.request}
+    
+class CommentListCreateView(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        # Filtra comentários pelo 'pk' do post na URL
+        post_pk = self.kwargs['post_pk']
+        return Comment.objects.filter(post_id=post_pk)
+
+    def perform_create(self, serializer):
+        # Associa o comentário ao post e ao usuário logado
+        post_pk = self.kwargs['post_pk']
+        post = generics.get_object_or_404(Posts, pk=post_pk)
+        serializer.save(user=self.request.user, post=post)
+
+# NOVA VIEW para Reações
+class ReactionCreateDeleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, post_pk):
+        post = generics.get_object_or_404(Posts, pk=post_pk)
+        emoji = request.data.get('emoji')
+
+        if not emoji:
+            return Response({"error": "Emoji é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Tenta criar, se já existir (unique_together), ignora silenciosamente ou atualiza (aqui criamos ou falhamos)
+        reaction, created = Reaction.objects.get_or_create(
+            post=post,
+            user=request.user,
+            defaults={'emoji': emoji} # Só usa o emoji se for criar
+        )
+
+        # Se não foi criado (já existia), e o emoji for diferente, atualiza
+        if not created and reaction.emoji != emoji:
+             reaction.emoji = emoji
+             reaction.save()
+        elif not created and reaction.emoji == emoji:
+             # Se clicou no mesmo emoji, remove a reação (DELETE logic)
+             reaction.delete()
+             return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+        serializer = ReactionSerializer(reaction)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)

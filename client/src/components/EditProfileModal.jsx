@@ -27,7 +27,7 @@ const EditProfileModal = ({ isOpen, onClose, profile, onProfileUpdate, onOpenDel
             formData.append('profile_pic', profilePic);
         }
 
-        const promise = axios.patch('http://localhost:8000/api/profile/', formData, {
+        const promise = axios.patch('http://192.168.15.164:8000/api/profile/', formData, {
             headers: {
                 'Authorization': `Bearer ${authTokens.access}`,
                 'Content-Type': 'multipart/form-data',
