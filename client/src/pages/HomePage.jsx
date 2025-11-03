@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import BottomNav from '../components/BottomNav';
-import Navbar from '../components/NavBar';
+import Navbar from '../components/Navbar';
 import Feed from '../components/Feed';
 import axiosInstance from '../utils/axiosInstance';
 import toast from 'react-hot-toast';

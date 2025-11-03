@@ -97,6 +97,18 @@ const Feed = ({ endpoint, posts, setPosts, loading }) => {
                                     <img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-cover" />
                                 </figure>
                             )}
+                            {post.video && (
+                                <figure>
+                                    <video src={post.video} controls className="w-full h-auto max-h-96" />
+                                </figure>
+                            )}
+                            {post.attachment && (
+                                 <div className="mt-2 p-3 bg-base-200 rounded-lg">
+                                    <a href={post.attachment} target="_blank" rel="noopener noreferrer" className="link link-primary">
+                                         📄 Ver Anexo
+                                    </a>
+                                 </div>
+                            )}
                             <small className="text-gray-400 text-xs mt-3 block">
                                 {new Date(post.createdAt).toLocaleString('pt-BR')}
                             </small>

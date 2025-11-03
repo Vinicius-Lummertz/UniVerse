@@ -8,6 +8,8 @@ class Posts(models.Model):
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
     image = models.ImageField(upload_to='posts/', blank=True, null=True)
+    video = models.FileField(upload_to='posts/videos/', blank=True, null=True)
+    attachment = models.FileField(upload_to='posts/attachments/', blank=True, null=True)
 
     def __str__(self):
         return self.title

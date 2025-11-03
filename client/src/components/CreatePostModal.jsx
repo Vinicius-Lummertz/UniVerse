@@ -1,15 +1,16 @@
 // src/components/CreatePostModal.jsx
 
 import { useState, useEffect, useContext, useRef } from 'react'; // Adicione useEffect
-import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import toast from 'react-hot-toast'; // Importe o toast
+import axiosInstance from '../utils/axiosInstance';
 
 // Agora recebe uma prop opcional 'postToEdit'
 const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [image, setImage] = useState(null)
+    const [file, setFile] = useState(null);
+    const [fileType, setFileType] = useState(null);
     const { authTokens } = useContext(AuthContext);
     const modalRef = useRef(null)
     // Se estiver em modo de edição, preenche o formulário com os dados do post
@@ -26,7 +27,8 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
             // Limpa o formulário ao abrir para criar um novo post
             setTitle('');
             setContent('');
-            setImage(null);
+            setFile(null);
+            setFileType(null);
             // Reseta o input de arquivo (se necessário, pode exigir useRef)
             const fileInput = modalRef.current?.querySelector('input[type="file"]');
             if(fileInput) fileInput.value = '';
@@ -34,10 +36,27 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
     }, [postToEdit, isOpen]);
 
 
-    const handleImageChange = (e) => {
-            setImage(e.target.files[0]); // Pega o primeiro arquivo selecionado
-        };
+    const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
 
+        if (!selectedFile) {
+            setFile(null);
+            setFileType(null);
+            return;
+        }
+
+        setFile(selectedFile);
+
+        if (selectedFile.type.startsWith('image/')) {
+            setFileType('image');
+        } else if (selectedFile.type.startsWith('video/')) {
+            setFileType('video');
+        } else {
+            setFileType('attachment');
+        }
+        };
+    
+    
     const handlePostSubmit = async (e) => {
     e.preventDefault();
 
@@ -45,10 +64,14 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
     const formData = new FormData();
     formData.append('title', title);
     formData.append('content', content);
-    // Adiciona a imagem ao formData APENAS se uma nova imagem foi selecionada
-    if (image) {
-        formData.append('image', image);
-    }
+    // Adiciona a filem ao formData APENAS se uma nova filem foi selecionada
+    if (file && fileType === 'image') {
+            formData.append('image', file);
+        } else if (file && fileType === 'video') {
+            formData.append('video', file);
+        } else if (file && fileType === 'file') {
+            formData.append('attachment', file);
+        }
 
     const isEditMode = Boolean(postToEdit);
     const url = isEditMode
@@ -57,11 +80,7 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
     
     const method = isEditMode ? 'put' : 'post';
 
-    const promise = axios({
-        method: method,
-        url: url,
-        data: formData, 
-    });
+    const promise = axiosInstance[method](url, formData);
 
     toast.promise(promise, {
         loading: 'Salvando seu post...',
@@ -75,7 +94,6 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated, postToEdit }) => {
         onClose();       // Fecha o modal
     } catch (error) {
         console.error("Erro ao enviar o post:", error);
-        // O toast já vai exibir a mensagem de erro, aqui só logamos o detalhe
     }
     };
 
@@ -113,12 +131,11 @@ return (
                         ></textarea>
                     </div>
 
-                    {/* Input de Imagem */}
                     <div className="form-control">
-                        <label className="label"><span className="label-text">Imagem (Opcional)</span></label>
+                        <label className="label"><span className="label-text">Arquivo (Opcional)</span></label>
                         <input
                             type="file"
-                            onChange={handleImageChange}
+                            onChange={handleFileChange}
                             className="file-input file-input-bordered w-full"
                         />
                     </div>

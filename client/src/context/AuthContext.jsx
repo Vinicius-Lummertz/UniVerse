@@ -1,6 +1,5 @@
 // src/context/AuthContext.jsx
 import { createContext, useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
 import { jwtDecode } from 'jwt-decode'; // Instale com: npm install jwt-decode
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast'; // Importe o toast
@@ -13,8 +12,16 @@ export default AuthContext;
 
 export const AuthProvider = ({ children }) => {
     const [authTokens, setAuthTokens] = useState(() => localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null);
-    const [user, setUser] = useState(() => localStorage.getItem('authTokens') ? jwtDecode(localStorage.getItem('authTokens')) : null);
-    const [loading, setLoading] = useState('')
+    const [user, setUser] = useState(() => {
+        const tokensStr = localStorage.getItem('authTokens');
+        if (!tokensStr) return null;
+        try {
+            const parsed = JSON.parse(tokensStr);
+            return jwtDecode(parsed.access);
+        } catch (_e) {
+            return null;
+        }
+    });
     const navigate = useNavigate();
 
 const loginUser = async (username, password) => {
@@ -83,7 +90,7 @@ const loginUser = async (username, password) => {
          if (storedTokens) {
              setAuthTokens(JSON.parse(storedTokens));
          }
-        setLoading(false); // Apenas seta loading para false
+         
      }, []);
 
     return (

@@ -116,10 +116,7 @@ class UserSearchView(generics.ListAPIView):
     def get_queryset(self):
         query = self.request.query_params.get('q', None)
         if query and len(query) >= 1:
-            print(f"\n--- BUSCANDO por '{query}' ---") # Adicionei um print aqui também
-            # --- REMOVA O .exclude() DESTA LINHA ---
             results = User.objects.filter(username__icontains=query).exclude(id=self.request.user.id)
-            print(f"--- RESULTADOS: {list(results)} ---") # Print dos resultados
             return results
         return User.objects.none()
     
