@@ -1,6 +1,6 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import Navbar from '../components/NavBar';
@@ -14,6 +14,7 @@ import axiosInstance from '../utils/axiosInstance';
 
 const ProfilePage = () => {
     const { username } = useParams();
+    const navigate = useNavigate();
     const { authTokens, user, logoutUser } = useContext(AuthContext); // Pega o usuário logado
 
     const [profileData, setProfileData] = useState(null); // Agora guarda o objeto User + Profile
@@ -77,6 +78,20 @@ const ProfilePage = () => {
         }
     };
 
+    const handleStartChat = async () => {
+        try {
+            // Chama nosso novo endpoint de API
+            const response = await axiosInstance.post(`/api/chat/start/${username}/`);
+            const conversationId = response.data.id;
+            
+            // Redireciona o usuário para a sala de chat
+            navigate(`/chat/${conversationId}`);
+        } catch (error) {
+            console.error("Erro ao iniciar a conversa", error);
+            toast.error("Não foi possível iniciar o chat.");
+        }
+    };
+
 
     const handleAvatarClick = () => {
         if (isOwnProfile) {
@@ -95,7 +110,7 @@ const ProfilePage = () => {
     };
 
     const handleAccountDelete = async () => {
-            const promise = axios.delete('http://192.168.15.164:8000/api/profile/delete/', {
+            const promise = axiosInstance.delete('/api/profile/delete/', {
                  headers: { 'Authorization': `Bearer ${authTokens.access}` }
             });
 
@@ -162,13 +177,24 @@ const ProfilePage = () => {
                             {isOwnProfile ? (
                                 <button className="btn btn-primary btn-sm" onClick={() => setIsEditProfileOpen(true)}>Editar Perfil</button>
                             ) : (
+                                <>
                                 <button 
-                                    className={`btn btn-sm ${isFollowing ? 'btn-outline' : 'btn-primary'}`}
-                                    onClick={handleFollowToggle}
+                                className={`btn btn-sm ${isFollowing ? 'btn-outline' : 'btn-primary'}`}
+                                onClick={handleFollowToggle}
                                 >
                                     {isFollowing ? "Deixar de Seguir" : "Seguir"}
                                 </button>
+
+                                <button 
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={handleStartChat}
+                                    >
+                                    Mensagem
+                                </button>                   
+                                </>
+                                
                             )}
+                           
                         </div>
                     </div>
 

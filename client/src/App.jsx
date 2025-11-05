@@ -7,6 +7,8 @@ import PrivateRoute from './utils/PrivateRoute';
 import { Toaster } from 'react-hot-toast'; // 1. Importe o Toaster
 import ProfilePage from './pages/ProfilePage';
 import FollowingFeedPage from './pages/FollowingFeedPage';
+import ChatListPage from './pages/ChatListPage';
+import ChatDetailPage from './pages/ChatDetailPage';
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/profile/:username" element={<ProfilePage />} />
           <Route path="/following" element={<FollowingFeedPage />} />
+          <Route path="/chat" element={<ChatListPage />} />
+          <Route path="/chat/:id" element={<ChatDetailPage />} />
         </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

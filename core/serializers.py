@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Posts
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Profile, Comment, Reaction
+from .models import Profile, Comment, Reaction, Conversation, Message
 
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -123,3 +123,27 @@ class UserSearchSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'profile']
 
+class MessageSerializer(serializers.ModelSerializer):
+    author_username = serializers.ReadOnlyField(source='author.username')
+    
+    class Meta:
+        model = Message
+        fields = ['id', 'author', 'author_username', 'content', 'timestamp']
+        read_only_fields = ['author'] # O autor é definido pelo servidor
+
+class ConversationSerializer(serializers.ModelSerializer):
+    participant_usernames = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Conversation
+        fields = ['id', 'participant_usernames', 'last_message', 'updated_at']
+
+    def get_participant_usernames(self, obj):
+        return [user.username for user in obj.participants.all()]
+
+    def get_last_message(self, obj):
+        last_msg = obj.messages.all().last() # Pega a última mensagem
+        if last_msg:
+            return MessageSerializer(last_msg).data
+        return None

@@ -4,11 +4,12 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Posts, Profile, Comment, Reaction
-from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, UserSearchSerializer, CommentSerializer, ReactionSerializer
+from .models import Posts, Profile, Comment, Reaction, Conversation, Message
+from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, UserSearchSerializer, CommentSerializer, ReactionSerializer, ConversationSerializer, MessageSerializer
 from django.contrib.auth.models import User 
 from .permissions import IsOwnerOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend 
+from django.db.models import Count
 
 
 
@@ -174,3 +175,60 @@ class ReactionCreateDeleteView(APIView):
 
         serializer = ReactionSerializer(reaction)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    
+class StartConversationView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        try:
+            # Encontra o usuário com quem se quer conversar
+            other_user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({"error": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        if other_user == request.user:
+            return Response({"error": "Você não pode iniciar uma conversa consigo mesmo."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Tenta encontrar uma conversa 1-para-1 que já exista
+        # Filtra conversas que têm EXATAMENTE 2 participantes
+        # E que contenham o usuário logado E o outro usuário
+        conversation = Conversation.objects.annotate(
+            participant_count=Count('participants')
+        ).filter(
+            participant_count=2,
+            participants=request.user
+        ).filter(
+            participants=other_user
+        ).first()
+
+        # Se a conversa não existir, cria uma nova
+        if not conversation:
+            conversation = Conversation.objects.create()
+            conversation.participants.add(request.user, other_user)
+        
+        serializer = ConversationSerializer(conversation)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class ConversationListView(generics.ListAPIView):
+    serializer_class = ConversationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Filtra as conversas onde o usuário logado é um participante
+        return self.request.user.conversations.all().order_by('-updated_at')
+
+# NOVA VIEW: Listar todas as mensagens de uma conversa (histórico)
+class MessageListView(generics.ListAPIView):
+    serializer_class = MessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Pega o ID da conversa da URL
+        conversation_id = self.kwargs['conversation_id']
+        try:
+            # Garante que o usuário logado é participante desta conversa
+            conversation = self.request.user.conversations.get(id=conversation_id)
+            return conversation.messages.all()
+        except Conversation.DoesNotExist:
+            # Se não for participante, não retorna nada
+            return Message.objects.none()

@@ -143,3 +143,14 @@ MEDIA_URL = '/media/'
 
 # Caminho no sistema de arquivos onde os arquivos de mídia serão salvos
 MEDIA_ROOT = BASE_DIR / 'media' 
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],  #redis server
+        },
+    },
+}
+
+ASGI_APPLICATION = 'config.asgi.application'

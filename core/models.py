@@ -52,3 +52,25 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'Comment by {self.user.username} on post {self.post.pk}'
+    
+class Conversation(models.Model):
+    # Relaciona os participantes (usuários) da conversa
+    participants = models.ManyToManyField(User, related_name="conversations")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Conversa entre {', '.join([user.username for user in self.participants.all()])}"
+
+class Message(models.Model):
+    
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    author = models.ForeignKey(User, related_name='messages', on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['timestamp'] # Ordena as mensagens da mais antiga para a mais nova
+
+    def __str__(self):
+        return f"Mensagem de {self.author.username} em {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
