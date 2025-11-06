@@ -9,3 +9,18 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
         # Permissões de escrita (PUT, DELETE) só são permitidas para o dono do post.
         return obj.owner == request.user
+    
+class IsCommunityAdmin(permissions.BasePermission):
+    """
+    Permissão para checar se o usuário é o admin da comunidade.
+    """
+    def has_object_permission(self, request, view, obj):
+        # O 'obj' aqui será a 'Community' ou 'CommunityMembership'
+        # Se o obj for a Comunidade:
+        if hasattr(obj, 'admin'):
+            return obj.admin == request.user
+        # Se o obj for a Inscrição (Membership):
+        if hasattr(obj, 'community'):
+            return obj.community.admin == request.user
+        
+        return False

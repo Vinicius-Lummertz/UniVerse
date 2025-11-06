@@ -1,180 +1,500 @@
-# core/views.py
-
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Posts, Profile, Comment, Reaction, Conversation, Message
-from .serializers import PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, UserSearchSerializer, CommentSerializer, ReactionSerializer, ConversationSerializer, MessageSerializer
-from django.contrib.auth.models import User 
-from .permissions import IsOwnerOrReadOnly
-from django_filters.rest_framework import DjangoFilterBackend 
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import User 
+from django_filters.rest_framework import DjangoFilterBackend 
 
+# Importação de todos os modelos e serializers necessários
+from .models import (
+    Posts, Profile, Comment, Reaction, Conversation, Message,
+    Community, CommunityMembership, Announcement, Tag, Notification
+)
+from .serializers import (
+    PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, 
+    UserSearchSerializer, CommentSerializer, ReactionSerializer, 
+    ConversationSerializer, MessageSerializer, UserUpdateSerializer,
+    CommunitySerializer, CommunityMembershipSerializer, AnnouncementSerializer,
+    TagSerializer, NotificationSerializer
+)
+# Importação de todas as permissões
+from .permissions import IsOwnerOrReadOnly, IsCommunityAdmin
 
+# ==============================================================================
+# VIEWS DE POSTS E INTERAÇÕES (Existentes)
+# ==============================================================================
 
-# --- VIEW DE LISTA E CRIAÇÃO ---
 class PostListAPIView(generics.ListCreateAPIView):
-    queryset = Posts.objects.all().order_by('-createdAt')
+    """
+    Lista todos os posts (para o feed global) ou cria um novo post.
+    O feed global é público (AllowAny).
+    """
+    # queryset = Posts.objects.all().order_by('-createdAt') # Movido para get_queryset
     serializer_class = PostSerializer
-    # CORREÇÃO: A permissão aqui deve ser apenas para checar se o usuário está logado
-    # para poder CRIAR. Qualquer um pode LER a lista.
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Permite leitura anônima
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['owner__username']
 
+    def get_queryset(self):
+        # Filtra posts para mostrar apenas posts "globais" (não de comunidade)
+        return Posts.objects.filter(community__isnull=True).order_by('-createdAt')
+
     def perform_create(self, serializer):
+        # Associa o post ao usuário logado
         serializer.save(owner=self.request.user)
 
-    def get_serializer_context(self): # Adicione este método
+    def get_serializer_context(self):
         return {'request': self.request}
 
-# --- VIEW DE DETALHES, EDIÇÃO E EXCLUSÃO ---
+
 class PostDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Vê, atualiza ou deleta um post específico.
+    Protegido por: (Dono do Post) ou (Admin Global/Staff)
+    """
     queryset = Posts.objects.all()
     serializer_class = PostSerializer
-    # CORREÇÃO: É AQUI que precisamos checar se o usuário é o dono do post
-    # para poder EDITAR ou DELETAR.
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
-    def get_serializer_context(self): # Adicione este método
-        return {'request': self.request}
-
-class ProfileUpdateView(generics.RetrieveUpdateAPIView):
-    queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        # Retorna o perfil do usuário que está fazendo a requisição
-        return self.request.user.profile
-
-# --- VIEW DE REGISTRO DE USUÁRIO (sem alteração) ---
-class UserCreateAPIView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-
-# --- VIEW DE LOGIN/TOKEN (sem alteração) ---
-class MyTokenObtainPairView(TokenObtainPairView):
-    serializer_class = MyTokenObtainPairSerializer
-
-
-    
-
-class FollowUserView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, username):
-        try:
-            user_to_follow = User.objects.get(username=username)
-            profile_to_follow = user_to_follow.profile
-            current_user_profile = request.user.profile
-
-            if current_user_profile == profile_to_follow:
-                return Response({"error": "Você não pode seguir a si mesmo."}, status=status.HTTP_400_BAD_REQUEST)
-
-            current_user_profile.following.add(profile_to_follow)
-            return Response({"status": "seguindo"}, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return Response({"error": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-    def delete(self, request, username):
-        try:
-            user_to_unfollow = User.objects.get(username=username)
-            profile_to_unfollow = user_to_unfollow.profile
-            current_user_profile = request.user.profile
-
-            current_user_profile.following.remove(profile_to_unfollow)
-            return Response({"status": "deixou de seguir"}, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return Response({"error": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-# NOVA VIEW para a timeline de quem você segue
-class FollowingPostsFeedView(generics.ListAPIView):
-    serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        # Filtra perfis que o usuário logado segue
-        following_profiles = user.profile.following.all()
-        # Filtra posts onde o 'owner' (User) tem um 'profile' que está na lista de 'following_profiles'
-        return Posts.objects.filter(owner__profile__in=following_profiles).order_by('-createdAt')
-    
-class UserDeleteView(generics.DestroyAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-
-        return self.request.user
-    
-class UserSearchView(generics.ListAPIView):
-    serializer_class = UserSearchSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [] 
-
-    def get_queryset(self):
-        query = self.request.query_params.get('q', None)
-        if query and len(query) >= 1:
-            results = User.objects.filter(username__icontains=query).exclude(id=self.request.user.id)
-            return results
-        return User.objects.none()
-    
-class UserDetailView(generics.RetrieveAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    lookup_field = 'username'
-
     def get_serializer_context(self):
-        # Passa o 'request' para o ProfileSerializer
         return {'request': self.request}
-    
-class CommentListCreateView(generics.ListCreateAPIView):
-    serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get_queryset(self):
-        # Filtra comentários pelo 'pk' do post na URL
-        post_pk = self.kwargs['post_pk']
-        return Comment.objects.filter(post_id=post_pk)
 
-    def perform_create(self, serializer):
-        # Associa o comentário ao post e ao usuário logado
-        post_pk = self.kwargs['post_pk']
-        post = generics.get_object_or_404(Posts, pk=post_pk)
-        serializer.save(user=self.request.user, post=post)
-
-# NOVA VIEW para Reações
 class ReactionCreateDeleteView(APIView):
+    """
+    Cria, atualiza ou deleta uma reação a um post.
+    Se o usuário clica no mesmo emoji, a reação é removida.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, post_pk):
-        post = generics.get_object_or_404(Posts, pk=post_pk)
+        post = get_object_or_404(Posts, pk=post_pk)
         emoji = request.data.get('emoji')
 
         if not emoji:
             return Response({"error": "Emoji é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Tenta criar, se já existir (unique_together), ignora silenciosamente ou atualiza (aqui criamos ou falhamos)
         reaction, created = Reaction.objects.get_or_create(
             post=post,
             user=request.user,
-            defaults={'emoji': emoji} # Só usa o emoji se for criar
+            defaults={'emoji': emoji}
         )
 
-        # Se não foi criado (já existia), e o emoji for diferente, atualiza
         if not created and reaction.emoji != emoji:
              reaction.emoji = emoji
              reaction.save()
         elif not created and reaction.emoji == emoji:
-             # Se clicou no mesmo emoji, remove a reação (DELETE logic)
              reaction.delete()
              return Response(status=status.HTTP_204_NO_CONTENT)
 
-
         serializer = ReactionSerializer(reaction)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class CommentListCreateView(generics.ListCreateAPIView):
+    """
+    Lista todos os comentários de um post ou cria um novo comentário.
+    """
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        post_pk = self.kwargs['post_pk']
+        return Comment.objects.filter(post_id=post_pk)
+
+    def perform_create(self, serializer):
+        post_pk = self.kwargs['post_pk']
+        post = get_object_or_404(Posts, pk=post_pk)
+        serializer.save(user=self.request.user, post=post)
+
+# ==============================================================================
+# VIEWS DE USUÁRIO E PERFIL (Existentes + Novas)
+# ==============================================================================
+
+class UserCreateAPIView(generics.CreateAPIView):
+    """
+    Registra um novo usuário.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.AllowAny] # Permite registro anônimo
+
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    """
+    View de Login (Obtenção de Token JWT).
+    """
+    serializer_class = MyTokenObtainPairSerializer
+
+
+class UserDetailView(generics.RetrieveAPIView):
+    """
+    Vê os detalhes de um perfil de usuário (pelo username).
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    lookup_field = 'username'
+    permission_classes = [permissions.AllowAny] # Permite ver perfis publicamente
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+class UserUpdateView(generics.RetrieveUpdateAPIView):
+    """
+    Permite ao usuário logado atualizar seus dados básicos (nome, email).
+    """
+    serializer_class = UserUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+
+class ProfileUpdateView(generics.RetrieveUpdateAPIView):
+    """
+    Permite ao usuário logado atualizar seu perfil (bio, foto, universidade, etc.).
+    """
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.profile
+
+
+class UserDeleteView(generics.DestroyAPIView):
+    """
+    Permite ao usuário logado deletar sua própria conta.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+
+class UserSearchView(generics.ListAPIView):
+    """
+    Busca usuários pelo username.
+    """
+    serializer_class = UserSearchSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [] # Desabilita o filtro global do DRF
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', None)
+        if query and len(query) >= 1:
+            return User.objects.filter(username__icontains=query).exclude(id=self.request.user.id)
+        return User.objects.none()
+
+# ==============================================================================
+# VIEWS DE FEED E SEGUIR (Existentes + Novas)
+# ==============================================================================
+
+class FollowUserView(APIView):
+    """
+    Adiciona ou remove um usuário da lista de "seguindo".
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        user_to_follow = get_object_or_404(User, username=username)
+        current_user_profile = request.user.profile
+        if current_user_profile.user == user_to_follow:
+            return Response({"error": "Você não pode seguir a si mesmo."}, status=status.HTTP_400_BAD_REQUEST)
+        current_user_profile.following.add(user_to_follow.profile)
+        return Response({"status": "seguindo"}, status=status.HTTP_200_OK)
+
+    def delete(self, request, username):
+        user_to_unfollow = get_object_or_404(User, username=username)
+        request.user.profile.following.remove(user_to_unfollow.profile)
+        return Response({"status": "deixou de seguir"}, status=status.HTTP_200_OK)
+
+
+class FollowingPostsFeedView(generics.ListAPIView):
+    """
+    Retorna o feed de posts dos usuários que você segue.
+    """
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        following_profiles = user.profile.following.all()
+        # Filtra posts "globais" (sem comunidade) dos perfis que o usuário segue
+        return Posts.objects.filter(
+            owner__profile__in=following_profiles, 
+            community__isnull=True
+        ).order_by('-createdAt')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+class ToggleSavePostView(APIView):
+    """
+    NOVA VIEW: Adiciona ou remove um post da lista de "Salvos" do usuário.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, post_pk):
+        post = get_object_or_404(Posts, pk=post_pk)
+        profile = request.user.profile
+
+        if post in profile.saved_posts.all():
+            profile.saved_posts.remove(post)
+            return Response({"status": "removido dos salvos"}, status=status.HTTP_200_OK)
+        else:
+            profile.saved_posts.add(post)
+            return Response({"status": "adicionado aos salvos"}, status=status.HTTP_200_OK)
+
+
+class SavedPostListView(generics.ListAPIView):
+    """
+    NOVA VIEW: Retorna a lista de posts salvos (bookmarks) do usuário logado.
+    """
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.profile.saved_posts.all().order_by('-createdAt')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+class HashtagPostListView(generics.ListAPIView):
+    """
+    NOVA VIEW: Retorna posts (globais) que contêm uma #hashtag específica.
+    """
+    serializer_class = PostSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        tag_name = self.kwargs['tag_name']
+        tag = get_object_or_404(Tag, name__iexact=tag_name) # __iexact ignora case
+        return tag.posts.filter(community__isnull=True).order_by('-createdAt')
+    
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+# ==============================================================================
+# VIEWS DE COMUNIDADES (Novas)
+# ==============================================================================
+
+class CommunityCreateView(generics.CreateAPIView):
+    """
+    NOVA VIEW: Cria uma nova comunidade (define o usuário como admin).
+    """
+    queryset = Community.objects.all()
+    serializer_class = CommunitySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(admin=self.request.user)
+
+
+class CommunityListView(generics.ListAPIView):
+    """
+    NOVA VIEW: Lista todas as comunidades (para a página "Explorar").
+    """
+    queryset = Community.objects.all().order_by('name')
+    serializer_class = CommunitySerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class CommunityDetailView(generics.RetrieveAPIView):
+    """
+    NOVA VIEW: Vê os detalhes de uma comunidade.
+    """
+    queryset = Community.objects.all()
+    serializer_class = CommunitySerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class JoinCommunityView(APIView):
+    """
+    NOVA VIEW: Permite ao usuário logado "entrar" ou "solicitar entrada" em uma comunidade.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, community_id):
+        community = get_object_or_404(Community, id=community_id)
+        user = request.user
+
+        # Verifica se já é membro ou se a solicitação está pendente
+        if CommunityMembership.objects.filter(user=user, community=community).exists():
+            return Response({"error": "Você já é membro ou sua solicitação está pendente."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if community.privacy == 'public':
+            membership = CommunityMembership.objects.create(user=user, community=community, status='approved')
+            return Response({"status": "approved", "membership_id": membership.id}, status=status.HTTP_201_CREATED)
+        else: # 'private'
+            membership = CommunityMembership.objects.create(user=user, community=community, status='pending')
+            return Response({"status": "pending", "membership_id": membership.id}, status=status.HTTP_201_CREATED)
+
+
+class ApproveMemberView(APIView):
+    """
+    NOVA VIEW: (Admin da Comunidade) Aprova uma solicitação pendente.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsCommunityAdmin]
+
+    def post(self, request, membership_id):
+        membership = get_object_or_404(CommunityMembership, id=membership_id)
+        # Checagem de permissão (extra)
+        self.check_object_permission(request, membership) 
+        
+        if membership.status == 'pending':
+            membership.status = 'approved'
+            membership.save()
+            # Criar notificação para o usuário (lógica futura)
+            return Response({"status": "approved"}, status=status.HTTP_200_OK)
+        return Response({"error": "Membro já estava aprovado."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RemoveMemberView(generics.DestroyAPIView):
+    """
+    NOVA VIEW: (Admin da Comunidade OU o próprio usuário) Remove um membro.
+    """
+    queryset = CommunityMembership.objects.all()
+    serializer_class = CommunityMembershipSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def check_object_permission(self, request, obj):
+        # Permite se: 1. Você é o Admin da Comunidade OU 2. Você está tentando sair (é o seu próprio membership)
+        if not (obj.community.admin == request.user or obj.user == request.user):
+            self.permission_denied(request)
+
+
+class CommunityFeedView(generics.ListAPIView):
+    """
+    NOVA VIEW: Retorna o feed de posts de uma comunidade específica.
+    """
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        community_id = self.kwargs['community_id']
+        community = get_object_or_404(Community, id=community_id)
+        
+        # Verifica se o usuário é membro aprovado
+        if not community.members.filter(user=self.request.user, status='approved').exists():
+            raise serializers.ValidationError("Você não é membro desta comunidade.")
+            
+        return community.community_posts.all().order_by('-createdAt')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+class CommunityPostCreateView(generics.CreateAPIView):
+    """
+    NOVA VIEW: Cria um post dentro de uma comunidade específica.
+    """
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        community_id = self.kwargs['community_id']
+        community = get_object_or_404(Community, id=community_id)
+        
+        # Verifica se o usuário é membro aprovado
+        if not community.members.filter(user=self.request.user, status='approved').exists():
+            raise serializers.ValidationError("Você não é membro desta comunidade.")
+        
+        serializer.save(owner=self.request.user, community=community)
+
+
+class FindCommunityByCourseView(generics.ListAPIView):
+    """
+    NOVA VIEW: Encontra comunidades pelo nome do curso (para onboarding).
+    """
+    serializer_class = CommunitySerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        course = self.request.query_params.get('course', None)
+        if course:
+            # Retorna comunidades que batem (parcialmente, sem case) com o nome do curso
+            return Community.objects.filter(related_course__icontains=course)
+        return Community.objects.none()
+
+# ==============================================================================
+# VIEWS DE ANÚNCIOS E NOTIFICAÇÕES (Novas)
+# ==============================================================================
+
+class AnnouncementListView(generics.ListAPIView):
+    """
+    NOVA VIEW: (Alunos) Lista recados do curso/universidade.
+    """
+    serializer_class = AnnouncementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        profile = self.request.user.profile
+        if not profile.onboarding_complete:
+            return Announcement.objects.none()
+        
+        return Announcement.objects.filter(
+            target_university=profile.universidade,
+            target_course=profile.curso
+        ).order_by('-timestamp')
+
+
+class AnnouncementCreateView(generics.CreateAPIView):
+    """
+    NOVA VIEW: (Professores) Cria um novo recado.
+    """
+    serializer_class = AnnouncementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        profile = self.request.user.profile
+        # Verifica se o usuário tem o badge de "Professor"
+        if not profile.badges.filter(name__iexact="Professor").exists():
+            raise serializers.ValidationError("Apenas professores podem enviar anúncios.")
+        
+        serializer.save(
+            author=self.request.user,
+            target_university=profile.universidade,
+            target_course=profile.curso
+        )
+
+
+class NotificationListView(generics.ListAPIView):
+    """
+    NOVA VIEW: Lista as notificações do usuário logado.
+    """
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.notifications.all() # .all() já usa o ordering do Meta
+
+
+class MarkNotificationReadView(APIView):
+    """
+    NOVA VIEW: Marca notificações específicas (ou todas) como lidas.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        ids = request.data.get('ids', None) # Recebe uma lista de IDs
+        mark_all = request.data.get('all', False)
+        user = request.user
+
+        if mark_all:
+            user.notifications.filter(read=False).update(read=True)
+            return Response({"status": "all marked as read"}, status=status.HTTP_200_OK)
+        
+        if ids and isinstance(ids, list):
+            user.notifications.filter(id__in=ids, read=False).update(read=True)
+            return Response({"status": "selected marked as read"}, status=status.HTTP_200_OK)
+        
+        return Response({"error": "Nenhum ID fornecido ou 'all:true' não foi setado."}, status=status.HTTP_400_BAD_REQUEST)
     
 class StartConversationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
