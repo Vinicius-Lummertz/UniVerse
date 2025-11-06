@@ -15,13 +15,13 @@ function App() {
     <div className="bg-gray-100 min-h-screen font-sans">
       <Toaster position="top-center" reverseOrder={false} />
       <Routes>
-        <Route element={<PrivateRoute />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/profile/:username" element={<ProfilePage />} />
-          <Route path="/following" element={<FollowingFeedPage />} />
-          <Route path="/chat" element={<ChatListPage />} />
-          <Route path="/chat/:id" element={<ChatDetailPage />} />
-        </Route>
+          <Route element={<PrivateRoute />}>
+            <Route path="/profile/:username" element={<ProfilePage />} />
+            <Route path="/following" element={<FollowingFeedPage />} />
+            <Route path="/chat" element={<ChatListPage />} />
+            <Route path="/chat/:id" element={<ChatDetailPage />} />
+          </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Routes>

@@ -1,32 +1,30 @@
-// src/context/AuthContext.jsx
 import { createContext, useState, useEffect, useMemo } from 'react';
-import { jwtDecode } from 'jwt-decode'; // Instale com: npm install jwt-decode
+import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast'; // Importe o toast
+import toast from 'react-hot-toast';
 import axiosInstance from '../utils/axiosInstance';
 
 const AuthContext = createContext();
 export default AuthContext;
 
-
-
 export const AuthProvider = ({ children }) => {
-    const [authTokens, setAuthTokens] = useState(() => localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null);
-    const [user, setUser] = useState(() => {
-        const tokensStr = localStorage.getItem('authTokens');
-        if (!tokensStr) return null;
-        try {
-            const parsed = JSON.parse(tokensStr);
-            return jwtDecode(parsed.access);
-        } catch (_e) {
-            return null;
-        }
-    });
+    const [authTokens, setAuthTokens] = useState(() => 
+        localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null
+    );
+    
+    // CORREÇÃO: Inicializa o usuário a partir do 'userInfo', não do 'authTokens'
+    const [user, setUser] = useState(() => 
+        localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null
+    );
+    
+    // NOVO ESTADO (Fase 1.2)
+    const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+    
+    const [loading, setLoading] = useState(true); // Estado de loading para checagem inicial
     const navigate = useNavigate();
 
-const loginUser = async (username, password) => {
+    const loginUser = async (username, password) => {
         try {
-            // 3. Use axiosInstance para o login (já inclui baseURL)
             const tokenResponse = await axiosInstance.post(`/api/token/`, { username, password });
             const tokenData = tokenResponse.data;
             setAuthTokens(tokenData);
@@ -35,10 +33,16 @@ const loginUser = async (username, password) => {
             const decodedToken = jwtDecode(tokenData.access);
             const loggedInUsername = decodedToken.username;
 
+            // Busca os dados completos do perfil
             const userResponse = await axiosInstance.get(`/api/users/${loggedInUsername}/`);
             const fullUserData = userResponse.data;
             setUser(fullUserData);
             localStorage.setItem('userInfo', JSON.stringify(fullUserData));
+
+            // ATUALIZAÇÃO (Fase 1.2): Checa a flag de onboarding
+            if (fullUserData.profile && !fullUserData.profile.onboarding_complete) {
+                setShowOnboardingModal(true);
+            }
 
             navigate('/');
             toast.success('Login efetuado com sucesso!');
@@ -66,36 +70,64 @@ const loginUser = async (username, password) => {
             }
         } catch (error) {
             console.error("Erro no registro!", error);
-            toast.error("Falha ao registrar. Verifique os dados.");
+            // Adicionar feedback de erro mais específico (ex: usuário já existe)
+            if (error.response && error.response.data.username) {
+                 toast.error(`Erro no registro: ${error.response.data.username[0]}`);
+            } else {
+                 toast.error("Falha ao registrar. Verifique os dados.");
+            }
         }
     };
 
     const logoutUser = () => {
         setAuthTokens(null);
         setUser(null);
+        setShowOnboardingModal(false); // Garante que o modal feche ao sair
         localStorage.removeItem('authTokens');
         localStorage.removeItem('userInfo');
         navigate('/login');
         toast.success('Você saiu da sua conta.');
     };
 
-    const contextData = useMemo(() => ({ user, authTokens, loginUser, logoutUser, registerUser }), [user, authTokens]);
+    // ATUALIZAÇÃO (Fase 1.2): Exporta os novos estados
+    const contextData = useMemo(() => ({
+        user,
+        setUser, // Exporta o setUser para o modal de onboarding poder atualizar o user
+        authTokens,
+        loginUser,
+        logoutUser,
+        registerUser,
+        showOnboardingModal,
+        setShowOnboardingModal
+    }), [user, authTokens, showOnboardingModal]);
 
+    // ATUALIZAÇÃO (Fase 1.2): useEffect agora checa o onboarding no load
     useEffect(() => {
         const storedUserInfo = localStorage.getItem('userInfo');
         if (storedUserInfo) {
-            setUser(JSON.parse(storedUserInfo));
+            const parsedUser = JSON.parse(storedUserInfo);
+            setUser(parsedUser);
+            // Checa no carregamento da página também
+            if (parsedUser.profile && !parsedUser.profile.onboarding_complete) {
+                setShowOnboardingModal(true);
+            }
         }
         const storedTokens = localStorage.getItem('authTokens');
          if (storedTokens) {
              setAuthTokens(JSON.parse(storedTokens));
          }
-         
-     }, []);
+        
+        setLoading(false); // Finaliza o loading
+    }, []);
 
     return (
         <AuthContext.Provider value={contextData}>
-            {children}
+            {/* Mostra um loading global enquanto o contexto verifica o login */}
+            {!loading ? children : (
+                <div className="flex justify-center items-center h-screen">
+                    <span className="loading loading-spinner loading-lg"></span>
+                </div>
+            )}
         </AuthContext.Provider>
     );
-};
+};      
