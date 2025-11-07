@@ -1,6 +1,6 @@
-import { useState, useContext, useCallback } from 'react';
+import { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiEdit3 } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit3, FiBookmark, FiMoreHorizontal } from 'react-icons/fi';
 import AuthContext from '../context/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
 import toast from 'react-hot-toast';
@@ -10,25 +10,25 @@ import Reactions from './Reactions';
 import CommentForm from './CommentForm';
 import CommentList from './CommentList';
 
-const Feed = ({ endpoint, posts, setPosts, loading }) => {
-    const { user, authTokens } = useContext(AuthContext);
+// O Feed agora recebe 'getPosts' como prop e não define mais seu próprio 'endpoint' ou 'getPosts'
+const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreateWhenEmpty = false }) => {
+    // 'user' e 'setUser' vêm do contexto para checagens de permissão e salvar posts
+    // 'user' pode ser 'null' se o visitante não estiver logado
+    const { user, setUser } = useContext(AuthContext); 
+    
+    // Os estados dos modais vivem dentro do Feed
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPost, setEditingPost] = useState(null);
     const [postToDelete, setPostToDelete] = useState(null);
 
-    const getPosts = useCallback(async () => {
-        try {
-            const response = await axiosInstance.get(endpoint);
-            setPosts(response.data);
-        } catch (error) {
-            if (error.response?.status !== 401) {
-                toast.error("Não foi possível carregar os posts.");
-            }
-        }
-    }, [endpoint, setPosts]);
-
+    // Funções de controle dos modais
     const handleEdit = (post) => {
         setEditingPost(post);
+        setIsModalOpen(true);
+    };
+
+    const handleCreate = () => {
+        setEditingPost(null);
         setIsModalOpen(true);
     };
 
@@ -45,11 +45,11 @@ const Feed = ({ endpoint, posts, setPosts, loading }) => {
         setPostToDelete(null);
     };
 
+    // Função de deletar (agora usa 'setPosts' da prop)
     const confirmDelete = async () => {
         if (!postToDelete) return;
 
         const promise = axiosInstance.delete(`/api/posts/${postToDelete}/`);
-
         toast.promise(promise, {
             loading: 'Excluindo post...',
             success: 'Post excluído com sucesso!',
@@ -57,6 +57,7 @@ const Feed = ({ endpoint, posts, setPosts, loading }) => {
         });
 
         promise.then(() => {
+            // Atualiza o estado da PÁGINA PAI
             setPosts(posts.filter(p => p.pk !== postToDelete));
             closeDeleteModal();
         }).catch(err => {
@@ -64,96 +65,237 @@ const Feed = ({ endpoint, posts, setPosts, loading }) => {
             closeDeleteModal();
         });
     };
+    
+    // Função de Salvar Post (usa 'user' e 'setUser' do contexto)
+    const handleSavePost = async (postPk, isCurrentlySaved) => {
+        if (!user) {
+            toast.error("Você precisa estar logado para salvar posts.");
+            return;
+        }
 
+        const promise = axiosInstance.post(`/api/posts/${postPk}/save/`);
+        toast.promise(promise, {
+            loading: 'Salvando...',
+            success: isCurrentlySaved ? 'Post removido dos salvos!' : 'Post salvo!',
+            error: 'Não foi possível salvar.'
+        });
+
+        try {
+            await promise;
+            // Atualiza o estado do 'user' no AuthContext para refletir a mudança
+            const updatedSavedPosts = isCurrentlySaved
+                ? user.profile.saved_posts.filter(id => id !== postPk)
+                : [...user.profile.saved_posts, postPk];
+
+            const updatedUser = {
+                ...user,
+                profile: {
+                    ...user.profile,
+                    saved_posts: updatedSavedPosts
+                }
+            };
+            
+            setUser(updatedUser); // Atualiza o contexto
+            localStorage.setItem('userInfo', JSON.stringify(updatedUser)); // Atualiza o storage
+            
+        } catch (error) {
+            console.error("Erro ao salvar post:", error);
+        }
+    };
+
+
+    // Exibição de Loading
     if (loading) {
-        return <div className="flex justify-center items-center h-screen">
-            <span className="loading loading-spinner loading-lg"></span>
-        </div>;
+        return (
+            // Calcula altura para não ficar sob a navbar/bottomnav
+            <div className="flex justify-center items-center h-[calc(100vh-10rem)]"> 
+                <span className="loading loading-spinner loading-lg"></span>
+            </div>
+        );
     }
 
     return (
         <>
-            <main className="container mx-auto p-4">
+            {/* O padding para o BottomNav agora está aqui */}
+            <main className="container mx-auto p-4 pb-20">
                 <div className="flex flex-col items-center gap-6">
-                    {posts.map(post => (
-                        <div key={post.pk} className="bg-white rounded-lg shadow-md p-5 w-full max-w-2xl relative">
-                            {user && user.username === post.owner && (
-                                <div className="absolute top-3 right-3 flex gap-2">
-                                    <button onClick={() => handleEdit(post)} className="text-gray-500 hover:text-blue-600">
-                                        <FiEdit3 size={18} />
-                                    </button>
-                                    <button onClick={() => openDeleteModal(post.pk)} className="text-gray-500 hover:text-red-600">
-                                        <FiTrash2 size={18} />
-                                    </button>
-                                </div>
-                            )}
-                            <Link to={`/profile/${post.owner}`} className="font-bold hover:underline">
-                                {post.owner}
-                            </Link>
-                            <p className="font-semibold text-lg mt-1">{post.title}</p>
-                            <p className="text-gray-600 mt-2">{post.content}</p>
-                            {post.image && (
-                                <figure>
-                                    <img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-cover" />
-                                </figure>
-                            )}
-                            {post.video && (
-                                <figure>
-                                    <video src={post.video} controls className="w-full h-auto max-h-96" />
-                                </figure>
-                            )}
-                            {post.attachment && (
-                                 <div className="mt-2 p-3 bg-base-200 rounded-lg">
-                                    <a href={post.attachment} target="_blank" rel="noopener noreferrer" className="link link-primary">
-                                         📄 Ver Anexo
-                                    </a>
-                                 </div>
-                            )}
-                            <small className="text-gray-400 text-xs mt-3 block">
-                                {new Date(post.createdAt).toLocaleString('pt-BR')}
-                            </small>
-                            <Reactions
-                                postId={post.pk}
-                                initialReactionsSummary={post.reactions_summary}
-                                initialUserReaction={post.current_user_reaction}
-                            />
-                            <div className="divider my-1"></div>
-                            <CommentList comments={post.comments} />
-                            <CommentForm
-                                postId={post.pk}
-                                onCommentAdded={(newComment) => {
-                                    setPosts(currentPosts => currentPosts.map(p =>
-                                        p.pk === post.pk
-                                            ? { ...p, comments: [...p.comments, newComment] }
-                                            : p
-                                    ));
-                                }}
-                            />
+                    
+                    {/* Mensagem se o feed estiver vazio */}
+                    {!loading && posts.length === 0 && (
+                        <div className="card w-full max-w-2xl bg-base-100 shadow-xl">
+                            <div className="card-body items-center text-center">
+                                <h2 className="card-title">Que silêncio...</h2>
+                                {/* 2. Usa a prop da mensagem customizada */}
+                                <p>{emptyFeedMessage || "Não há nenhum post para mostrar aqui ainda."}</p>
+                                
+                                {/* 3. Usa a prop booleana para mostrar o botão */}
+                                {user && showCreateWhenEmpty && (
+                                    <div className="card-actions mt-4">
+                                        <button className="btn btn-primary" onClick={handleCreate}>
+                                            <FiPlus /> Seja o primeiro a postar!
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    ))}
+                    )}
+
+                    {/* Loop dos Posts */}
+                    {posts.map(post => {
+                        // Verifica se o usuário logado salvou este post
+                        const isSaved = user?.profile?.saved_posts?.includes(post.pk);
+
+                        return (
+                            // Card do Post (estrutura DaisyUI)
+                            <div key={post.pk} className="card w-full max-w-2xl bg-base-100 shadow-xl overflow-hidden">
+                                
+                                {post.image && (
+                                    <figure><img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-cover" /></figure>
+                                )}
+                                {post.video && (
+                                    <figure><video src={post.video} controls className="w-full h-auto max-h-96" /></figure>
+                                )}
+
+                                <div className="card-body p-4 sm:p-6">
+                                    <div className="flex justify-between items-start gap-2">
+                                        {/* Informações do Autor (com Badges) */}
+                                        <div className='flex items-center gap-3'>
+                                            <div className="avatar">
+                                                <div className="w-10 rounded-full">
+                                                    {/* Lógica para mostrar foto do perfil do dono do post */}
+                                                    {/* Isso não vem no 'post' por padrão, então usamos um placeholder */}
+                                                    <img src={'/default-avatar.png'} alt={post.owner} />
+                                                </div>
+                                            </div> 
+                                            <div className='flex flex-col'>
+                                                <Link to={`/profile/${post.owner}`} className="font-bold link link-hover text-lg leading-tight">
+                                                    {post.owner}
+                                                </Link>
+                                                {/* Renderiza os Badges do autor */}
+                                                <div className='flex flex-wrap gap-1 mt-1'>
+                                                    {post.owner_badges?.map(badge => (
+                                                        <div key={badge.name} className={`badge badge-${badge.color || 'neutral'} badge-xs`}>
+                                                            {badge.icon && <span className='mr-1'>{badge.icon}</span>} {badge.name}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Dropdown de Editar/Excluir (SÓ SE FOR DONO ou STAFF) */}
+                                        {user && (user.username === post.owner || user.profile?.is_staff) && (
+                                            <div className="dropdown dropdown-end">
+                                                <button tabIndex={0} role="button" className="btn btn-ghost btn-sm btn-circle">
+                                                    <FiMoreHorizontal size={18} />
+                                                </button>
+                                                <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-32">
+                                                    {user.username === post.owner && (
+                                                        <li><button onClick={() => handleEdit(post)} className='w-full text-left'> <FiEdit3 className='mr-2'/> Editar</button></li>
+                                                    )}
+                                                    {/* Admins e o dono podem excluir */}
+                                                    <li><button onClick={() => openDeleteModal(post.pk)} className='w-full text-left text-error'> <FiTrash2 className='mr-2'/> Excluir{user.profile?.is_staff && " (Admin)"}</button></li>
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Conteúdo do Post */}
+                                    <h2 className="card-title mt-2">{post.title}</h2>
+                                    <p className="mt-1 whitespace-pre-wrap">{post.content}</p> {/* whitespace-pre-wrap respeita quebras de linha */}
+
+                                    {post.attachment && (
+                                         <div className="mt-2 p-3 bg-base-200 rounded-lg">
+                                            <a href={post.attachment} target="_blank" rel="noopener noreferrer" className="link link-primary">
+                                                 📄 Ver Anexo
+                                            </a>
+                                         </div>
+                                    )}
+                                    
+                                    <small className="text-xs text-base-content/60 mt-3 block">
+                                        {new Date(post.createdAt).toLocaleString('pt-BR')}
+                                    </small>
+
+                                    {/* Ações (Reações e Salvar) */}
+                                    <div className="card-actions justify-between items-center mt-4">
+                                        {/* Lógica condicional para Reações */}
+                                        {user ? (
+                                            <Reactions
+                                                postId={post.pk}
+                                                initialReactionsSummary={post.reactions_summary}
+                                                initialUserReaction={post.current_user_reaction}
+                                            />
+                                        ) : (
+                                            <div className="text-sm text-base-content/70">
+                                                <Link to="/login" className="link link-primary">Faça login</Link> para reagir.
+                                            </div>
+                                        )}
+                                        
+                                        {/* Botão Salvar (SÓ SE ESTIVER LOGADO) */}
+                                        {user && (
+                                            <button onClick={() => handleSavePost(post.pk, isSaved)} className="btn btn-ghost btn-sm">
+                                                <FiBookmark size={18} className={isSaved ? 'fill-primary text-primary' : ''} />
+                                                {isSaved ? 'Salvo' : 'Salvar'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="divider my-1"></div>
+
+                                    {/* Comentários */}
+                                    <CommentList comments={post.comments} />
+                                    
+                                    {user ? (
+                                        <CommentForm
+                                            postId={post.pk}
+                                            onCommentAdded={(newComment) => {
+                                                // Atualiza o estado local para o novo comentário aparecer
+                                                setPosts(currentPosts => currentPosts.map(p =>
+                                                    p.pk === post.pk
+                                                        ? { ...p, comments: [...p.comments, newComment] }
+                                                        : p
+                                                ));
+                                            }}
+                                        />
+                                    ) : (
+                                        // **CORRIGIDO: Removido 'Especialista em TI' e tag quebrada**
+                                        <div className="mt-4 p-3 rounded-lg bg-base-200 text-sm text-center">
+                                            <Link to="/login" className="link link-primary font-semibold">Faça login</Link> para deixar um comentário.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </main>
 
-            <button
-                onClick={() => setIsModalOpen(true)}
-                className="fixed bottom-20 right-5 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition z-20">
-                <FiPlus size={24} />
-            </button>
+            {/* Botão Flutuante de Criar Post (SÓ SE ESTIVER LOGADO) */}
+            {user && (
+                <button
+                    onClick={handleCreate}
+                    className="fixed bottom-20 right-5 btn btn-primary btn-circle shadow-lg z-20">
+                    <FiPlus size={24} />
+                </button>
+            )}
 
-            <CreatePostModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                onPostCreated={getPosts}
-                postToEdit={editingPost}
-            />
-
-            <ConfirmationModal
-                isOpen={!!postToDelete}
-                onClose={closeDeleteModal}
-                onConfirm={confirmDelete}
-                title="Confirmar Exclusão"
-                message="Você tem certeza que deseja excluir este post? Esta ação não pode ser desfeita."
-            />
+            {/* Modais (só renderizam se 'user' existir) */}
+            {user && (
+                <>
+                    <CreatePostModal
+                        isOpen={isModalOpen}
+                        onClose={handleCloseModal}
+                        onPostCreated={getPosts} // 3. Usa o 'getPosts' recebido por prop
+                        postToEdit={editingPost}
+                    />
+                    <ConfirmationModal
+                        isOpen={!!postToDelete}
+                        onClose={closeDeleteModal}
+                        onConfirm={confirmDelete}
+                        title="Confirmar Exclusão"
+                        message="Você tem certeza que deseja excluir este post? Esta ação não pode ser desfeita."
+                    />
+                </>
+            )}
         </>
     );
 };
