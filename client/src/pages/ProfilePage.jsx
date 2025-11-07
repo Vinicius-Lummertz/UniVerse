@@ -1,58 +1,81 @@
 // src/pages/ProfilePage.jsx
-import { useState, useEffect, useContext } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useState, useEffect, useContext, useCallback } from 'react'; // Adicionado useCallback
+import { useParams, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
-import Navbar from '../components/NavBar';
 import BottomNav from '../components/BottomNav';
 import ImageViewModal from '../components/ImageViewModal';
 import EditProfileModal from '../components/EditProfileModal';
 import toast from 'react-hot-toast'; 
 import ConfirmationModal from '../components/ConfirmationModal';
 import axiosInstance from '../utils/axiosInstance';
-
+import Feed from '../components/Feed'; // 1. Importar o Feed
+import OnboardingModal from '../components/OnboardingModal'; // 2. Importar o OnboardingModal
+import Navbar from '../components/Navbar';
 
 const ProfilePage = () => {
     const { username } = useParams();
     const navigate = useNavigate();
-    const { authTokens, user, logoutUser } = useContext(AuthContext); // Pega o usuário logado
-
-    const [profileData, setProfileData] = useState(null); // Agora guarda o objeto User + Profile
-    const [posts, setPosts] = useState([]);
-    const [loading, setLoading] = useState(true);
     
-    // States para os modais
+    // 3. Pegar mais dados do AuthContext
+    const { authTokens, user, setUser, logoutUser, showOnboardingModal, setShowOnboardingModal } = useContext(AuthContext); 
+
+    const [profileData, setProfileData] = useState(null); 
+    const [posts, setPosts] = useState([]);
+    
+    // 4. Dividir os estados de loading
+    const [loadingProfile, setLoadingProfile] = useState(true);
+    const [loadingPosts, setLoadingPosts] = useState(true);
+    
     const [isViewImageOpen, setIsViewImageOpen] = useState(false);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-
     const [isFollowing, setIsFollowing] = useState(false);
-
     const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
 
-    // Checa se o usuário logado está vendo o seu próprio perfil
     const isOwnProfile = user?.username === username;
-    useEffect(() => {
-        const fetchProfileData = async () => {
-            setLoading(true);
-            try {
-                // Busca os detalhes do perfil
-                const profileRes = await axiosInstance.get(`/api/users/${username}/`);
-                setProfileData(profileRes.data);
-                setIsFollowing(profileRes.data.profile.is_following);
-                // Busca os posts do usuário
-                const postsRes = await axiosInstance.get(`/api/posts/?owner__username=${username}`, {
-                    headers: { 'Authorization': `Bearer ${authTokens.access}` }
-                });
-                setPosts(postsRes.data);
-            } catch (error) {
-                console.error("Erro ao buscar dados do perfil", error);
-            } finally {
-                setLoading(false);
-            }
-        };
 
-        fetchProfileData();
-    }, [username, authTokens]);
+    // 5. Função separada para buscar o perfil
+    const fetchProfile = useCallback(async () => {
+        setLoadingProfile(true);
+        try {
+            const profileRes = await axiosInstance.get(`/api/users/${username}/`);
+            setProfileData(profileRes.data);
+            setIsFollowing(profileRes.data.profile.is_following);
+            console.log(profileRes)
+            // 6. Ativar o modal de onboarding se for o perfil próprio e não estiver completo
+            if (isOwnProfile && profileRes.data.profile && !profileRes.data.profile.onboarding_complete) {
+                setShowOnboardingModal(true);
+            }
+
+        } catch (error) {
+            console.error("Erro ao buscar dados do perfil", error);
+            toast.error("Perfil não encontrado.");
+            navigate('/');
+        } finally {
+            setLoadingProfile(false);
+        }
+    }, [username, isOwnProfile, navigate, setShowOnboardingModal]);
+
+    // 7. Função separada e "Callback" para buscar os posts (para o Feed)
+    const fetchPosts = useCallback(async () => {
+        setLoadingPosts(true);
+        try {
+            const postsRes = await axiosInstance.get(`/api/posts/?owner__username=${username}`);
+            setPosts(postsRes.data);
+        } catch (error) {
+             if (error.response?.status !== 401) {
+                console.error("Erro ao buscar posts do usuário", error);
+                toast.error("Não foi possível carregar os posts.");
+             }
+        } finally {
+            setLoadingPosts(false);
+        }
+    }, [username]);
+
+    // 8. useEffect principal que busca perfil e posts
+    useEffect(() => {
+        fetchProfile();
+        fetchPosts();
+    }, [username, fetchProfile, fetchPosts]); // Depende do username e das funções
 
 
     const handleFollowToggle = async () => {
@@ -80,18 +103,14 @@ const ProfilePage = () => {
 
     const handleStartChat = async () => {
         try {
-            // Chama nosso novo endpoint de API
             const response = await axiosInstance.post(`/api/chat/start/${username}/`);
             const conversationId = response.data.id;
-            
-            // Redireciona o usuário para a sala de chat
             navigate(`/chat/${conversationId}`);
         } catch (error) {
             console.error("Erro ao iniciar a conversa", error);
             toast.error("Não foi possível iniciar o chat.");
         }
     };
-
 
     const handleAvatarClick = () => {
         if (isOwnProfile) {
@@ -101,18 +120,27 @@ const ProfilePage = () => {
         }
     };
     
-    // Função para atualizar o state local quando o perfil for editado no modal
-    const handleProfileUpdate = (updatedProfileData) => {
+    // 9. Nova função unificada para atualizar perfil (do modal)
+    const handleProfileUpdate = ({ profile: updatedProfileData, user: updatedUserData }) => {
+        
         setProfileData(prevData => ({
-            ...prevData,
-            profile: { ...prevData.profile, ...updatedProfileData }
+            ...prevData, 
+            ...updatedUserData, 
+            profile: { ...prevData.profile, ...updatedProfileData } 
         }));
+        
+        const newAuthUser = { 
+            ...user, 
+            ...updatedUserData, 
+            profile: { ...user.profile, ...updatedProfileData } 
+        };
+        
+        setUser(newAuthUser);
+        localStorage.setItem('userInfo', JSON.stringify(newAuthUser));
     };
 
     const handleAccountDelete = async () => {
-            const promise = axiosInstance.delete('/api/profile/delete/', {
-                 headers: { 'Authorization': `Bearer ${authTokens.access}` }
-            });
+            const promise = axiosInstance.delete('/api/profile/delete/');
 
             toast.promise(promise, {
                 loading: 'Excluindo sua conta...',
@@ -122,16 +150,15 @@ const ProfilePage = () => {
 
             try {
                 await promise;
-                setIsDeleteAccountOpen(false); // Fecha o modal de confirmação
-                logoutUser(); // Desloga o usuário
+                setIsDeleteAccountOpen(false); 
+                logoutUser(); 
             } catch (error) {
                 console.error(error);
             }
         };
 
-
-
-    if (loading) {
+    // O loading principal agora é o loadingProfile
+    if (loadingProfile) {
         return <div className="flex justify-center items-center h-screen"><span className="loading loading-spinner loading-lg"></span></div>;
     }
 
@@ -139,10 +166,7 @@ const ProfilePage = () => {
         return <div className="text-center mt-10">Perfil não encontrado.</div>
     }
 
-    // Os dados agora estão em profileData.profile
-    const { bio, profile_pic, followers_count, following_count } = profileData.profile || {}
-
-
+    const { bio, profile_pic, followers_count, following_count } = profileData.profile || {};
 
     return (
         <>
@@ -153,66 +177,69 @@ const ProfilePage = () => {
                         <div className="card-body items-center text-center">
                             <div className="avatar">
                                 <div className="w-24 rounded-full ring ring-offset-base-100 ring-offset-2 cursor-pointer" onClick={handleAvatarClick}>
-                                    <img src={profile_pic || '/avatar-default.svg'} />
+                                    <img src={profile_pic || '/avatar-default.svg'} alt="Foto do Perfil" />
                                 </div>
                             </div>
-                            <h2 className="card-title text-3xl mt-4">{profileData.username}</h2>
-                            <p className="text-base-content/70">{bio || (isOwnProfile && "Adicione uma bio para se apresentar!")}</p>
-                            <div className="stats stats-horizontal shadow mt-4">
-                            <div className="stat">
-                                <div className="stat-title">Posts</div>
-                                <div className="stat-value">{posts.length}</div>
-                            </div>
-                            <div className="stat">
-                                <div className="stat-title">Seguidores</div>
-                                <div className="stat-value">{followers_count}</div>
-                            </div>
-                            <div className="stat">
-                                <div className="stat-title">Seguindo</div>
-                                <div className="stat-value">{following_count}</div>
-                            </div>
-                        </div>
-                            
-                            
-                            {isOwnProfile ? (
-                                <button className="btn btn-primary btn-sm" onClick={() => setIsEditProfileOpen(true)}>Editar Perfil</button>
-                            ) : (
-                                <>
-                                <button 
-                                className={`btn btn-sm ${isFollowing ? 'btn-outline' : 'btn-primary'}`}
-                                onClick={handleFollowToggle}
-                                >
-                                    {isFollowing ? "Deixar de Seguir" : "Seguir"}
-                                </button>
+                            <h2 className="card-title text-3xl mt-4">
+                                {profileData.first_name}
+                            </h2>
+                            {
+                                <p className="text-base-content/70 -mt-2">@{profileData.username}</p>
+                            }
 
-                                <button 
-                                    className="btn btn-sm btn-secondary"
-                                    onClick={handleStartChat}
-                                    >
-                                    Mensagem
-                                </button>                   
-                                </>
-                                
-                            )}
-                           
+                            <p className="text-base-content/70 mt-2">{bio || (isOwnProfile && "Adicione uma bio para se apresentar!")}</p>
+                            
+                            {/* Stats */}
+                            <div className="stats stats-horizontal shadow mt-4">
+                                <div className="stat">
+                                    <div className="stat-title">Posts</div>
+                                    <div className="stat-value">{posts.length}</div>
+                                </div>
+                                <div className="stat">
+                                    <div className="stat-title">Seguidores</div>
+                                    <div className="stat-value">{followers_count}</div>
+                                </div>
+                                <div className="stat">
+                                    <div className="stat-title">Seguindo</div>
+                                    <div className="stat-value">{following_count}</div>
+                                </div>
+                            </div>
+                            
+                            {/* Botões de Ação */}
+                            <div className="card-actions justify-center gap-2 mt-4">
+                                {isOwnProfile ? (
+                                    <button className="btn btn-primary btn-sm" onClick={() => setIsEditProfileOpen(true)}>Editar Perfil</button>
+                                ) : (
+                                    <>
+                                        <button 
+                                            className={`btn btn-sm ${isFollowing ? 'btn-outline' : 'btn-primary'}`}
+                                            onClick={handleFollowToggle}
+                                        >
+                                            {isFollowing ? "Deixar de Seguir" : "Seguir"}
+                                        </button>
+                                        <button 
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={handleStartChat}
+                                        >
+                                            Mensagem
+                                        </button>                   
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
 
+                    {/* 11. Substituir o loop de posts pelo componente Feed */}
                     <div className="flex flex-col items-center gap-6">
                         <h3 className="text-xl font-bold self-start max-w-2xl mx-auto w-full">Posts de {profileData.username}</h3>
-                        {posts.length > 0 ? posts.map(post => (
-                            // Use o card do post do daisyUI que já fizemos
-                            <div key={post.pk} className="card w-full max-w-2xl bg-base-100 shadow-xl">
-                                <div className="card-body">
-                                    <h2 className="card-title">{post.title}</h2>
-                                    <p>{post.content}</p>
-                                    {post.image && <figure><img src={post.image} alt={post.title} /></figure>}
-                                    <small className="text-xs text-base-content/60 mt-2">{new Date(post.createdAt).toLocaleString('pt-BR')}</small>
-                                </div>
-                            </div>
-                        )) : (
-                            <p className="text-base-content/70">Este usuário ainda não fez nenhum post.</p>
-                        )}
+                        <Feed
+                            posts={posts}
+                            setPosts={setPosts}
+                            loading={loadingPosts}
+                            getPosts={fetchPosts} // Passa a função de recarregar posts
+                            emptyFeedMessage="Este usuário ainda não fez nenhum post."
+                            showCreateWhenEmpty={false} // Não mostrar botão de criar no perfil
+                        />
                     </div>
                 </main>
                 <BottomNav />
@@ -224,18 +251,20 @@ const ProfilePage = () => {
                 onClose={() => setIsViewImageOpen(false)} 
                 imageUrl={profile_pic || '/default-avatar.png'} 
             />
+            
             {isOwnProfile && (
                 <EditProfileModal 
                     isOpen={isEditProfileOpen} 
                     onClose={() => setIsEditProfileOpen(false)}
                     profile={profileData.profile}
-                    onProfileUpdate={handleProfileUpdate}
+                    onUpdate={handleProfileUpdate} // 12. Usar a nova prop 'onUpdate'
                     onOpenDeleteConfirm={() => {
-                        setIsEditProfileOpen(false); // Fecha o modal de edição
-                        setIsDeleteAccountOpen(true); // Abre o modal de confirmação
+                        setIsEditProfileOpen(false); 
+                        setIsDeleteAccountOpen(true); 
                     }}
                 />
             )}
+            
             <ConfirmationModal
                 isOpen={isDeleteAccountOpen}
                 onClose={() => setIsDeleteAccountOpen(false)}
@@ -243,6 +272,9 @@ const ProfilePage = () => {
                 title="Excluir Conta Permanentemente"
                 message="Você tem certeza? Esta ação não pode ser desfeita. Todos os seus posts, seguidores e dados de perfil serão apagados para sempre."
             />
+
+            {/* 13. Renderizar o OnboardingModal */}
+            {isOwnProfile && showOnboardingModal && <OnboardingModal />}
         </>
     );
 };

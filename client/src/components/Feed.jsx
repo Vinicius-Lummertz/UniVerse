@@ -149,12 +149,6 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                             // Card do Post (estrutura DaisyUI)
                             <div key={post.pk} className="card w-full max-w-2xl bg-base-100 shadow-xl overflow-hidden">
                                 
-                                {post.image && (
-                                    <figure><img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-cover" /></figure>
-                                )}
-                                {post.video && (
-                                    <figure><video src={post.video} controls className="w-full h-auto max-h-96" /></figure>
-                                )}
 
                                 <div className="card-body p-4 sm:p-6">
                                     <div className="flex justify-between items-start gap-2">
@@ -162,9 +156,8 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                         <div className='flex items-center gap-3'>
                                             <div className="avatar">
                                                 <div className="w-10 rounded-full">
-                                                    {/* Lógica para mostrar foto do perfil do dono do post */}
-                                                    {/* Isso não vem no 'post' por padrão, então usamos um placeholder */}
-                                                    <img src={'/default-avatar.png'} alt={post.owner} />
+                                                    
+                                                    <img src={"pfp"} alt={post.owner} />
                                                 </div>
                                             </div> 
                                             <div className='flex flex-col'>
@@ -202,7 +195,12 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                     {/* Conteúdo do Post */}
                                     <h2 className="card-title mt-2">{post.title}</h2>
                                     <p className="mt-1 whitespace-pre-wrap">{post.content}</p> {/* whitespace-pre-wrap respeita quebras de linha */}
-
+                                    {post.image && (
+                                        <figure><img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-center object-cover" /></figure>
+                                    )}
+                                    {post.video && (
+                                        <figure><video src={post.video} controls className="w-full h-auto max-h-96" /></figure>
+                                    )}
                                     {post.attachment && (
                                          <div className="mt-2 p-3 bg-base-200 rounded-lg">
                                             <a href={post.attachment} target="_blank" rel="noopener noreferrer" className="link link-primary">
