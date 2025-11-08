@@ -10,17 +10,17 @@ from django_filters.rest_framework import DjangoFilterBackend
 # Importação de todos os modelos e serializers necessários
 from .models import (
     Posts, Profile, Comment, Reaction, Conversation, Message,
-    Community, CommunityMembership, Announcement, Tag, Notification
+    Community, CommunityMembership, Announcement, Tag, Notification, Badge
 )
 from .serializers import (
     PostSerializer, UserSerializer, MyTokenObtainPairSerializer, ProfileSerializer, 
     UserSearchSerializer, CommentSerializer, ReactionSerializer, 
     ConversationSerializer, MessageSerializer, UserUpdateSerializer,
     CommunitySerializer, CommunityMembershipSerializer, AnnouncementSerializer,
-    TagSerializer, NotificationSerializer
+    TagSerializer, NotificationSerializer, AdminUserSerializer, BadgeSerializer, 
 )
 # Importação de todas as permissões
-from .permissions import IsOwnerOrReadOnly, IsCommunityAdmin
+from .permissions import IsOwnerOrReadOnly, IsCommunityAdmin, IsAdminUser
 
 # ==============================================================================
 # VIEWS DE POSTS E INTERAÇÕES (Existentes)
@@ -552,3 +552,38 @@ class MessageListView(generics.ListAPIView):
         except Conversation.DoesNotExist:
             # Se não for participante, não retorna nada
             return Message.objects.none()
+        
+class AdminUserListView(generics.ListAPIView):
+    """
+    (ADMIN) Lista todos os usuários para o painel de admin.
+    """
+    queryset = User.objects.all().order_by('username')
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdminUser] # Protegido!
+
+class AdminUserDetailView(generics.RetrieveUpdateAPIView):
+    """
+    (ADMIN) Vê ou Atualiza um usuário específico.
+    É aqui que você vai dar o badge de "Professor".
+    """
+    queryset = User.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdminUser] # Protegido!
+    lookup_field = 'id' # Vamos buscar por ID para ser mais fácil
+
+class BadgeListView(generics.ListAPIView):
+    """
+    (ADMIN) Lista todos os Badges disponíveis.
+    (Usado para popular o "select" no painel de admin).
+    """
+    queryset = Badge.objects.all()
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminUser] # Protegido!
+
+class AdminPostListView(generics.ListAPIView):
+    """
+    (ADMIN) Lista TODOS os posts para gerenciamento.
+    """
+    queryset = Posts.objects.all().order_by('createdAt')
+    serializer_class = PostSerializer
+    permission_classes = [IsAdminUser] # Protegido!

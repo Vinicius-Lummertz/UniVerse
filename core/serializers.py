@@ -8,12 +8,11 @@ from .models import (
     Notification  # <- 1. Importe o modelo Notification
 )
 
-# --- SERIALIZERS DE ITENS PEQUENOS (Badges, Tags) ---
 
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
-        fields = ['name', 'icon', 'color']
+        fields = '__all__'
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -56,7 +55,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name', 'profile']
+        fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name', 'profile', 'is_staff']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -73,6 +72,51 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['first_name', 'last_name', 'username', 'email']
 
+
+# 2. ADICIONAR: Serializer para o Admin gerenciar perfis
+# Este serializer é mais completo, pois é para o admin.
+class AdminProfileSerializer(serializers.ModelSerializer):
+    badges = BadgeSerializer(many=True, read_only=True) # Mostra badges atuais
+    badge_ids = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Badge.objects.all(), 
+        write_only=True, 
+        source='badges' # Ao escrever, usa o campo 'badges'
+    )
+
+    class Meta:
+        model = Profile
+        fields = ['bio', 'profile_pic', 'universidade', 'curso', 'atletica', 'ano_inicio', 'onboarding_complete', 'badges', 'badge_ids']
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """
+    Serializer para o Admin ver e editar Usuários.
+    Inclui o perfil aninhado.
+    """
+    profile = AdminProfileSerializer()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'is_staff', 'profile']
+
+    def update(self, instance, validated_data):
+        # Atualiza o perfil aninhado (para os badges)
+        profile_data = validated_data.pop('profile', {})
+        profile_serializer = AdminProfileSerializer(instance.profile, data=profile_data, partial=True)
+        
+        if profile_serializer.is_valid():
+            profile_serializer.save()
+        else:
+            raise serializers.ValidationError(profile_serializer.errors)
+
+
+        
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.is_staff = validated_data.get('is_staff', instance.is_staff)
+        instance.save()
+        
+        return instance
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

@@ -9,6 +9,8 @@ import ProfilePage from './pages/ProfilePage';
 import FollowingFeedPage from './pages/FollowingFeedPage';
 import ChatListPage from './pages/ChatListPage';
 import ChatDetailPage from './pages/ChatDetailPage';
+import AdminRoute from './utils/AdminRoute';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
@@ -21,6 +23,9 @@ function App() {
             <Route path="/following" element={<FollowingFeedPage />} />
             <Route path="/chat" element={<ChatListPage />} />
             <Route path="/chat/:id" element={<ChatDetailPage />} />
+            <Route element={<AdminRoute />} >
+              <Route path='/admin' element={ <AdminPage /> } />
+            </Route>
           </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

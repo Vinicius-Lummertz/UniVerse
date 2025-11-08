@@ -43,6 +43,14 @@ from .views import (
     AnnouncementCreateView,
     NotificationListView,
     MarkNotificationReadView,
+    
+    #admin
+    AdminUserDetailView,
+    AdminPostListView,
+    AdminUserListView,
+
+    #badge
+    BadgeListView
 )
 
 # A ordem dos paths está organizada por recurso e respeita
@@ -94,4 +102,11 @@ urlpatterns = [
     # --- Notificações (Like, Follow, etc) ---
     path('api/notifications/', NotificationListView.as_view(), name='notification-list'),
     path('api/notifications/mark-read/', MarkNotificationReadView.as_view(), name='notification-mark-read'),
+
+    #admin
+    path('admin/users/', AdminUserListView.as_view(), name='admin-user-list'),
+    path('admin/users/<int:id>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
+    path('admin/posts/', AdminPostListView.as_view(), name='admin-post-list'),
+    path('admin/badges/', BadgeListView.as_view(), name='admin-badge-list'),
+
 ]

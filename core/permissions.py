@@ -1,4 +1,5 @@
 from rest_framework import permissions
+from rest_framework.permissions import BasePermission
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
     
@@ -24,3 +25,10 @@ class IsCommunityAdmin(permissions.BasePermission):
             return obj.community.admin == request.user
         
         return False
+    
+class IsAdminUser(BasePermission):
+    """
+    Permite acesso apenas a usuários admin (is_staff=True).
+    """
+    def has_permission(self, request, view):
+        return request.user and request.user.is_staff

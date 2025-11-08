@@ -92,7 +92,7 @@ export const AuthProvider = ({ children }) => {
     // ATUALIZAÇÃO (Fase 1.2): Exporta os novos estados
     const contextData = useMemo(() => ({
         user,
-        setUser, // Exporta o setUser para o modal de onboarding poder atualizar o user
+        setUser, 
         authTokens,
         loginUser,
         logoutUser,
