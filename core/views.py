@@ -463,7 +463,7 @@ class AnnouncementCreateView(generics.CreateAPIView):
             )
         
         if self.request.user.is_staff:
-            serializer.save(author=self.request.user)
+            serializer.save(author=self.request.user,)
         else:
             serializer.save(
                 author=self.request.user,

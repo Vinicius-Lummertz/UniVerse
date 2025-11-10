@@ -3,11 +3,17 @@ import { useState, useEffect, useRef } from 'react';
 import axiosInstance from '../../utils/axiosInstance';
 import toast from 'react-hot-toast';
 
-// Cores do DaisyUI para seleção
 const DAISY_COLORS = [
     'default', 'primary', 'secondary', 'accent', 
     'info', 'success', 'warning', 'error', 'neutral'
 ];
+
+// Define as permissões padrão para garantir que o formulário funcione
+const defaultPermissions = {
+    can_access_admin_panel: false,
+    can_send_announcement: false,
+    can_moderate_global_posts: false
+};
 
 const BadgeEditModal = ({ isOpen, onClose, badgeToEdit, onBadgeSaved }) => {
     const modalRef = useRef(null);
@@ -17,47 +23,50 @@ const BadgeEditModal = ({ isOpen, onClose, badgeToEdit, onBadgeSaved }) => {
     const [name, setName] = useState('');
     const [icon, setIcon] = useState('');
     const [color, setColor] = useState('default');
-    const [canAccessAdmin, setCanAccessAdmin] = useState(false);
-    const [canSendAnnouncement, setCanSendAnnouncement] = useState(false);
-    const [canModeratePosts, setCanModeratePosts] = useState(false);
+    
+    // ATUALIZADO: O estado das permissões é um objeto
+    const [permissions, setPermissions] = useState(defaultPermissions);
 
-    // 1. Controla o modal do DaisyUI
     useEffect(() => {
         if (isOpen) modalRef.current?.showModal();
         else modalRef.current?.close();
     }, [isOpen]);
 
-    // 2. Popula o formulário quando o 'badgeToEdit' muda (ou limpa se for nulo)
     useEffect(() => {
         if (badgeToEdit) {
+            // Modo Edição: Popula com dados do badge
             setName(badgeToEdit.name);
             setIcon(badgeToEdit.icon || '');
             setColor(badgeToEdit.color || 'default');
-            setCanAccessAdmin(badgeToEdit.can_access_admin_panel);
-            setCanSendAnnouncement(badgeToEdit.can_send_announcement);
-            setCanModeratePosts(badgeToEdit.can_moderate_global_posts);
+            // Garante que o estado de permissões tenha todas as chaves
+            setPermissions({ ...defaultPermissions, ...(badgeToEdit.permissions || {}) });
         } else {
-            // Limpa para o modo "Criar"
+            // Modo Criar: Reseta para os padrões
             setName('');
             setIcon('');
             setColor('default');
-            setCanAccessAdmin(false);
-            setCanSendAnnouncement(false);
-            setCanModeratePosts(false);
+            setPermissions(defaultPermissions);
         }
-    }, [badgeToEdit, isOpen]); // Depende do isOpen para resetar ao reabrir
+    }, [badgeToEdit, isOpen]);
 
-    // 3. Envia os dados (POST ou PUT)
+    // ATUALIZADO: Handler para atualizar o objeto de permissões
+    const handlePermissionChange = (e) => {
+        const { name, checked } = e.target;
+        setPermissions(prev => ({
+            ...prev,
+            [name]: checked
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // ATUALIZADO: O payload agora envia o objeto 'permissions'
         const payload = {
             name,
             icon,
             color,
-            can_access_admin_panel: canAccessAdmin,
-            can_send_announcement: canSendAnnouncement,
-            can_moderate_global_posts: canModeratePosts,
+            permissions: permissions, // Envia o objeto de permissões
         };
 
         const url = isEditMode 
@@ -76,10 +85,9 @@ const BadgeEditModal = ({ isOpen, onClose, badgeToEdit, onBadgeSaved }) => {
 
         try {
             await promise;
-            onBadgeSaved(); // Avisa o pai para recarregar
+            onBadgeSaved(); 
         } catch (error) {
             console.error("Erro ao salvar badge:", error.response?.data || error);
-            // Mostra erros de validação da API (ex: nome duplicado)
             if (error.response?.data?.name) {
                 toast.error(`Erro: ${error.response.data.name[0]}`);
             }
@@ -117,34 +125,50 @@ const BadgeEditModal = ({ isOpen, onClose, badgeToEdit, onBadgeSaved }) => {
                     
                     <div className="divider">Permissões</div>
 
-                    {/* Toggles de Permissão */}
+                    {/* Toggles de Permissão (ATUALIZADOS) */}
                     <div className="form-control">
                         <label className="label cursor-pointer">
                             <span className="label-text font-medium">Pode Acessar o Painel Admin?</span>
-                            <input type="checkbox" className="toggle toggle-primary" checked={canAccessAdmin} onChange={(e) => setCanAccessAdmin(e.target.checked)} />
+                            <input 
+                                type="checkbox" 
+                                name="can_access_admin_panel"
+                                className="toggle toggle-primary" 
+                                checked={permissions.can_access_admin_panel}
+                                onChange={handlePermissionChange} 
+                            />
                         </label>
                     </div>
                     <div className="form-control">
                         <label className="label cursor-pointer">
                             <span className="label-text font-medium">Pode Enviar Recados (Anúncios)?</span>
-                            <input type="checkbox" className="toggle toggle-primary" checked={canSendAnnouncement} onChange={(e) => setCanSendAnnouncement(e.target.checked)} />
+                            <input 
+                                type="checkbox" 
+                                name="can_send_announcement"
+                                className="toggle toggle-primary" 
+                                checked={permissions.can_send_announcement}
+                                onChange={handlePermissionChange} 
+                            />
                         </label>
                     </div>
                     <div className="form-control">
                         <label className="label cursor-pointer">
                             <span className="label-text font-medium">Pode Moderar Posts (Global)?</span>
-                            <input type="checkbox" className="toggle toggle-primary" checked={canModeratePosts} onChange={(e) => setCanModeratePosts(e.target.checked)} />
+                            <input 
+                                type="checkbox" 
+                                name="can_moderate_global_posts"
+                                className="toggle toggle-primary" 
+                                checked={permissions.can_moderate_global_posts}
+                                onChange={handlePermissionChange} 
+                            />
                         </label>
                     </div>
                     
-                    {/* Ações */}
                     <div className="modal-action mt-6">
                         <button type="button" className="btn" onClick={onClose}>Cancelar</button>
                         <button type="submit" className="btn btn-primary">Salvar</button>
                     </div>
                 </form>
             </div>
-            {/* Fundo clicável para fechar */}
             <form method="dialog" className="modal-backdrop">
                 <button onClick={onClose}>close</button>
             </form>

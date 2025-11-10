@@ -13,16 +13,14 @@ const AnnouncementsPage = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     
-    // Pegamos o usuário para checar a permissão de criar recados
     const { user } = useContext(AuthContext);
 
-    // Verificamos dinamicamente se algum badge do usuário 
-    // tem a permissão 'can_send_announcement'
-    const canCreate = user?.profile?.badges?.some(badge => 
-        badge.permissions?.can_send_announcement
-    ) || user?.is_staff; // Superusuário também pode
+    // --- VERIFICAÇÃO ATUALIZADA ---
+    // Lê as permissões do JSONField de cada badge que o usuário possui.
+    const canCreate = user?.profile?.badges?.some(
+        badge => badge.permissions?.can_send_announcement
+    ) || user?.is_staff; // Superusuário (is_staff) sempre pode.
 
-    // Função para buscar os recados
     const fetchAnnouncements = useCallback(async () => {
         setLoading(true);
         try {
@@ -37,7 +35,6 @@ const AnnouncementsPage = () => {
         }
     }, []);
 
-    // Busca inicial
     useEffect(() => {
         fetchAnnouncements();
     }, [fetchAnnouncements]);
@@ -51,7 +48,7 @@ const AnnouncementsPage = () => {
                         <h1 className="text-3xl font-bold">
                             Mural de Recados
                         </h1>
-                        {/* Só mostra o botão de criar se tiver permissão */}
+                        {/* O 'canCreate' agora usa a nova lógica */}
                         {canCreate && (
                             <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
                                 <FiPlus /> Novo Recado
@@ -59,7 +56,6 @@ const AnnouncementsPage = () => {
                         )}
                     </div>
 
-                    {/* Lista de Recados */}
                     <div className="space-y-4">
                         {loading && (
                              <div className="flex justify-center items-center h-64">
@@ -79,7 +75,12 @@ const AnnouncementsPage = () => {
 
                         {!loading && announcements.map(announcement => (
                             <div key={announcement.id} className="card w-full bg-base-100 shadow-xl">
+                                {console.log(announcement)}
                                 <div className="card-body">
+                                    {/* Mostra o alvo do recado (Global, Universidade, Curso) */}
+                                    <div className="text-xs font-semibold text-primary mb-2">
+                                        {announcement.target_course || announcement.target_university || "Recado Global"}
+                                    </div>
                                     <p className="whitespace-pre-wrap">{announcement.content}</p>
                                     <div className="divider my-1"></div>
                                     <div className="flex justify-between items-center text-sm">
@@ -98,14 +99,11 @@ const AnnouncementsPage = () => {
             </div>
             <BottomNav />
             
-            {/* Modal de Criação */}
-            {canCreate && (
-                <CreateAnnouncementModal
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    onAnnouncementCreated={fetchAnnouncements} // Recarrega a lista após criar
-                />
-            )}
+            <CreateAnnouncementModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onAnnouncementCreated={fetchAnnouncements}
+            />
         </>
     );
 };

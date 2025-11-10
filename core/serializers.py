@@ -5,18 +5,30 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     Posts, Profile, Reaction, Comment, Conversation, Message,
     Tag, Badge, Community, CommunityMembership, Announcement,
-    Notification  # <- 1. Importe o modelo Notification
+    Notification  
 )
 
-
+# --- SERIALIZER ATUALIZADO: Badge ---
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
-        fields = ['id', 'name', 'permissions']
-
+        # 1. Substitui os booleans pelo JSONField
+        fields = ['id', 'name', 'icon', 'color', 'permissions']
+        
+    # 2. Adiciona a validação sugerida
     def validate_permissions(self, value):
         if not isinstance(value, dict):
             raise serializers.ValidationError("Permissions must be a dictionary")
+        
+        # 3. Garante que as chaves padrão existam ao salvar
+        default_keys = [
+            'can_access_admin_panel', 'can_send_announcement', 
+            'can_moderate_global_posts'
+        ]
+        for key in default_keys:
+            if key not in value:
+                value[key] = False # Define o padrão se estiver ausente
+                
         return value
 
 class TagSerializer(serializers.ModelSerializer):
@@ -30,8 +42,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField(read_only=True)
     following_count = serializers.SerializerMethodField(read_only=True)
     is_following = serializers.SerializerMethodField(read_only=True)
-    badges = BadgeSerializer(many=True, read_only=True)
-    is_admin = serializers.ReadOnlyField()
+    badges = BadgeSerializer(many=True, read_only=True) # Agora usará o BadgeSerializer atualizado
+    is_admin = serializers.ReadOnlyField() # Esta propriedade agora lê 'profile.is_admin'
+
     class Meta:
         model = Profile
         fields = [
@@ -39,7 +52,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'followers_count', 'following_count', 'is_following',
             'universidade', 'curso', 'atletica', 'ano_inicio', 'onboarding_complete',
             'badges', 'saved_posts',
-            'is_admin'
+            'is_admin' # 'is_admin' é essencial para o AdminRoute
         ]
 
     def get_followers_count(self, obj):
@@ -56,7 +69,6 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    # Aninha o ProfileSerializer atualizado
     profile = ProfileSerializer(read_only=True) 
 
     class Meta:
@@ -79,8 +91,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'username', 'email']
 
 
-# 2. ADICIONAR: Serializer para o Admin gerenciar perfis
-# Este serializer é mais completo, pois é para o admin.
+# --- Serializer do Painel Admin (Atribuição de Badges) ---
 class AdminProfileSerializer(serializers.ModelSerializer):
     badges = BadgeSerializer(many=True, read_only=True) # Mostra badges atuais
     badge_ids = serializers.PrimaryKeyRelatedField(
@@ -106,8 +117,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'is_staff', 'profile']
 
     def update(self, instance, validated_data):
-        # Atualiza o perfil aninhado (para os badges)
         profile_data = validated_data.pop('profile', {})
+        
+        # O AdminProfileSerializer lida apenas com a *atribuição* de 'badge_ids'
+        # Não mexe com o 'permissions' do badge em si.
         profile_serializer = AdminProfileSerializer(instance.profile, data=profile_data, partial=True)
         
         if profile_serializer.is_valid():
@@ -115,8 +128,6 @@ class AdminUserSerializer(serializers.ModelSerializer):
         else:
             raise serializers.ValidationError(profile_serializer.errors)
 
-
-        
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.is_staff = validated_data.get('is_staff', instance.is_staff)
@@ -128,12 +139,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # Adiciona dados customizados ao token
         token['username'] = user.username
         token['email'] = user.email
         return token
 
-# --- SERIALIZERS DE POSTS E INTERAÇÕES (Post, Reaction, Comment) ---
+# --- (O restante dos serializers Post, Comment, Reaction, etc. permanecem iguais) ---
 
 class ReactionSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
@@ -145,7 +155,6 @@ class ReactionSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
-    # Adiciona a foto de perfil do autor do comentário
     user_profile_pic = serializers.ImageField(source='user.profile.profile_pic', read_only=True)
 
     class Meta:
@@ -155,12 +164,9 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class PostSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
-    # Adiciona os badges do dono do post
     owner_badges = BadgeSerializer(many=True, read_only=True, source='owner.profile.badges')
-    
     comments = CommentSerializer(many=True, read_only=True)
-    tags = TagSerializer(many=True, read_only=True) # Mostra as tags do post
-    
+    tags = TagSerializer(many=True, read_only=True) 
     reactions_summary = serializers.SerializerMethodField(read_only=True)
     current_user_reaction = serializers.SerializerMethodField(read_only=True)
 
@@ -266,7 +272,6 @@ class NotificationSerializer(serializers.ModelSerializer):
     Serializa os dados de uma notificação para a API.
     """
     sender_username = serializers.ReadOnlyField(source='sender.username')
-    # Fornece os IDs dos objetos relacionados para que o frontend possa criar links
     post_id = serializers.ReadOnlyField(source='post.id')
     community_id = serializers.ReadOnlyField(source='community.id')
     
@@ -275,9 +280,9 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 
             'sender_username', 
-            'verb',         # "follow", "comment", etc.
-            'post_id',      # ID do post (se for notificação de post)
-            'community_id', # ID da comunidade (se for de aprovação)
-            'read',         # true ou false
+            'verb',         
+            'post_id',      
+            'community_id', 
+            'read',         
             'timestamp'
         ]

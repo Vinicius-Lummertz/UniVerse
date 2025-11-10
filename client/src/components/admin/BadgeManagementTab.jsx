@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '../../utils/axiosInstance';
 import toast from 'react-hot-toast';
-import BadgeEditModal from './BadgeEditModal'; // O modal que criaremos a seguir
-import ConfirmationModal from '../ConfirmationModal'; // Reutilizamos
+import BadgeEditModal from './BadgeEditModal'; 
+import ConfirmationModal from '../ConfirmationModal'; 
 import { FiEdit, FiTrash2, FiShield, FiPlus, FiCheck } from 'react-icons/fi';
 
 // Helper para mostrar permissões
@@ -15,16 +15,13 @@ const BadgeManagementTab = () => {
     const [badges, setBadges] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    // Estados dos Modais
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [selectedBadge, setSelectedBadge] = useState(null); // Para edição ou deleção
+    const [selectedBadge, setSelectedBadge] = useState(null); 
 
-    // Função de busca
     const fetchBadges = useCallback(async () => {
         setLoading(true);
         try {
-            // Usamos o novo endpoint de gerenciamento
             const response = await axiosInstance.get('/api/admin/badges/manage/');
             setBadges(response.data);
         } catch (err) {
@@ -41,12 +38,12 @@ const BadgeManagementTab = () => {
 
     // --- Handlers de Ação ---
     const handleOpenCreate = () => {
-        setSelectedBadge(null); // Limpa o badge (modo Criar)
+        setSelectedBadge(null); 
         setIsEditModalOpen(true);
     };
 
     const handleOpenEdit = (badge) => {
-        setSelectedBadge(badge); // Define o badge (modo Editar)
+        setSelectedBadge(badge); 
         setIsEditModalOpen(true);
     };
 
@@ -61,13 +58,11 @@ const BadgeManagementTab = () => {
         setIsDeleteModalOpen(false);
     };
 
-    // Chamado após o modal de edição salvar (Criar ou Atualizar)
     const handleBadgeSaved = () => {
-        fetchBadges(); // Recarrega a lista
+        fetchBadges(); 
         handleCloseModals();
     };
 
-    // Confirma a exclusão
     const confirmDelete = async () => {
         if (!selectedBadge) return;
 
@@ -80,37 +75,12 @@ const BadgeManagementTab = () => {
 
         try {
             await promise;
-            fetchBadges(); // Recarrega a lista
+            fetchBadges(); 
             handleCloseModals();
         } catch (err) {
             console.error(err);
             handleCloseModals();
         }
-    };
-
-    const handlePermissionChange = (badgeId, permission) => {
-        const badge = badges.find(b => b.id === badgeId);
-        if (!badge) return;
-
-        const updatedPermissions = {
-            ...badge.permissions,
-            [permission]: !badge.permissions[permission]
-        };
-
-        axiosInstance.patch(`/api/admin/badges/${badgeId}/`, {
-            permissions: updatedPermissions
-        })
-        .then(() => {
-            setBadges(badges.map(b => 
-                b.id === badgeId 
-                    ? {...b, permissions: updatedPermissions}
-                    : b
-            ));
-            toast.success('Permissões atualizadas!');
-        })
-        .catch(() => {
-            toast.error('Erro ao atualizar permissões');
-        });
     };
 
     if (loading) return <div className="flex justify-center"><span className="loading loading-spinner loading-lg"></span></div>;
@@ -129,6 +99,7 @@ const BadgeManagementTab = () => {
                     <thead>
                         <tr>
                             <th>Badge</th>
+                            {/* ATUALIZADO: Lendo do 'permissions' JSONField */}
                             <th className="text-center" title="Permite acesso ao Painel Admin (/admin)">Acessa Admin</th>
                             <th className="text-center" title="Permite enviar Anúncios/Recados">Envia Recados</th>
                             <th className="text-center" title="Permite deletar posts de outros usuários">Modera Posts</th>
@@ -143,9 +114,10 @@ const BadgeManagementTab = () => {
                                         {badge.icon || <FiShield />} {badge.name}
                                     </span>
                                 </td>
-                                <td className="text-center"><PermissionIcon enabled={badge.can_access_admin_panel} /></td>
-                                <td className="text-center"><PermissionIcon enabled={badge.can_send_announcement} /></td>
-                                <td className="text-center"><PermissionIcon enabled={badge.can_moderate_global_posts} /></td>
+                                {/* ATUALIZADO: Lendo do 'permissions' JSONField */}
+                                <td className="text-center"><PermissionIcon enabled={badge.permissions?.can_access_admin_panel} /></td>
+                                <td className="text-center"><PermissionIcon enabled={badge.permissions?.can_send_announcement} /></td>
+                                <td className="text-center"><PermissionIcon enabled={badge.permissions?.can_moderate_global_posts} /></td>
                                 <td className="space-x-1">
                                     <button className="btn btn-ghost btn-xs" onClick={() => handleOpenEdit(badge)}>
                                         <FiEdit />

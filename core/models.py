@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User 
-from django.db.models import Max # 1. Importar Max
+from django.db.models import Max, Q # 1. Importar Q
 
 # --- NOVO MODELO: Tag (para #hashtags) ---
 class Tag(models.Model):
@@ -16,60 +16,47 @@ class Posts(models.Model):
     content = models.TextField()
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
-    image = models.ImageField(upload_to='posts/images/', blank=True, null=True) # Mudei o upload_to
+    image = models.ImageField(upload_to='posts/images/', blank=True, null=True) 
     video = models.FileField(upload_to='posts/videos/', blank=True, null=True)
     attachment = models.FileField(upload_to='posts/attachments/', blank=True, null=True)
 
-    # --- NOVO CAMPO: LIGAÇÃO COM COMUNIDADE (Feature Solicitada) ---
     community = models.ForeignKey('Community', 
                                   related_name='community_posts', 
-                                  on_delete=models.SET_NULL,
+                                  on_delete=models.SET_NULL, 
                                   null=True, 
                                   blank=True)
-
-    # --- NOVO CAMPO: Tags (Feature Surpresa) ---
     tags = models.ManyToManyField(Tag, blank=True, related_name="posts")
 
     def __str__(self):
         return self.title
 
-# --- MODELO ATUALIZADO: Badge (Com Flags de Permissão) ---
+# --- MODELO ATUALIZADO: Badge (Com JSONField de Permissão) ---
 class Badge(models.Model):
-    name = models.CharField(max_length=50, unique=True) # "Professor", "Staff UniVerse", "Líder Atlética"
-    icon = models.CharField(max_length=50, blank=True) # Opcional: um nome de ícone (ex: 'academic-cap') ou emoji '🧑‍🏫'
-    color = models.CharField(max_length=20, default='default') # Cor do badge no DaisyUI (ex: 'primary', 'secondary')
+    name = models.CharField(max_length=50, unique=True) 
+    icon = models.CharField(max_length=50, blank=True) 
+    color = models.CharField(max_length=20, default='default') 
 
-    # --- NOVAS FLAGS DE PERMISSÃO ---
-    # Controla o acesso ao painel de /admin no frontend
-    can_access_admin_panel = models.BooleanField(default=False) 
-    
-    # Controla a criação de anúncios
-    can_send_announcement = models.BooleanField(default=False)
-    
-    # Controla a moderação global (deletar post de outros)
-    can_moderate_global_posts = models.BooleanField(default=False)
-    
-    # (Futuro) Controla moderação de posts apenas em comunidades
-    # can_moderate_community_posts = models.BooleanField(default=False) 
+    # --- CAMPO DE PERMISSÃO ATUALIZADO ---
+    # Substitui os BooleanFields individuais por um JSONField
+    permissions = models.JSONField(default=dict, blank=True)
 
-    permissions = models.JSONField(default=dict)
-
+    # 2. Adiciona o método save sugerido para popular defaults
     def save(self, *args, **kwargs):
+        # Define um schema padrão se estiver vazio
+        default_perms = {
+            'can_access_admin_panel': False,
+            'can_send_announcement': False,
+            'can_moderate_global_posts': False
+        }
+        
+        # Garante que o dict 'permissions' exista e tenha as chaves padrão
         if not self.permissions:
-            self.permissions = {
-                'can_create_posts': False,
-                'can_edit_any_post': False,
-                'can_delete_any_post': False,
-                'can_comment': False,
-                'can_react': False,
-                'can_create_community': False,
-                'can_join_community': False,
-                'can_send_announcement': False,  # Added for professors
-                'max_communities': 0,
-                'can_be_admin': False,
-                'is_professor': False,
-                'is_student': False
-            }
+             self.permissions = default_perms
+        else:
+            # Garante que novas chaves sejam adicionadas se faltarem
+            for key, value in default_perms.items():
+                self.permissions.setdefault(key, value)
+                
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -86,44 +73,53 @@ class Profile(models.Model):
                                        blank=True)
     badges = models.ManyToManyField(Badge, blank=True)
 
-    # --- NOVOS CAMPOS: ONBOARDING UNIVERSITÁRIO (Feature Solicitada) ---
     universidade = models.CharField(max_length=200, blank=True)
     curso = models.CharField(max_length=200, blank=True)
     atletica = models.CharField(max_length=100, blank=True)
-    ano_inicio = models.IntegerField(null=True, blank=True) # Sugestão: "ano de início"
-    onboarding_complete = models.BooleanField(default=False) # Para controlar o pop-up
+    ano_inicio = models.IntegerField(null=True, blank=True) 
+    onboarding_complete = models.BooleanField(default=False) 
 
-    # --- NOVOS CAMPOS: FEATURES SURPRESA ---
     cover_photo = models.ImageField(upload_to='cover_photos/', null=True, blank=True)
-    pronouns = models.CharField(max_length=20, blank=True) # ex: "Ela/Dela"
-    
+    pronouns = models.CharField(max_length=20, blank=True) 
     saved_posts = models.ManyToManyField(Posts, blank=True, related_name="saved_by_profiles")
 
     def __str__(self):
         return f'{self.user.username} Profile'
 
-    # --- NOVOS MÉTODOS DE PERMISSÃO ---
+    # --- MÉTODO DE PERMISSÃO ATUALIZADO ---
     def has_permission(self, permission_name):
-        """Check if user has permission through any of their badges"""
-        return any(
-            badge.permissions.get(permission_name, False)
-            for badge in self.badges.all()
-        ) or self.user.is_staff
+        """
+        Verifica se o usuário tem uma permissão específica com base em QUALQUER
+        um de seus badges, consultando o JSONField.
+        Ex: profile.has_permission('can_send_announcement')
+        """
+        # 3. Superusuários (staff) sempre têm permissão
+        if self.user.is_staff:
+            return True
+            
+        # 4. Constroem a query para o JSONField
+        # Ex: permissions__can_send_announcement=True
+        query_filter = {f'permissions__{permission_name}': True}
+        
+        # 5. Verifica se *algum* badge associado tem essa flag ativada
+        return self.badges.filter(**query_filter).exists()
     
     @property
     def is_admin(self):
         """
         Propriedade para checar se tem acesso ao painel de admin.
-        Usado pelo AdminRoute no frontend.
         """
+        # 6. Usa o novo método has_permission
         return self.has_permission('can_access_admin_panel')
     
 
+# --- MODELO ATUALIZADO: Announcement ---
 class Announcement(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='announcements')
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     
+    # 7. Ambos são blank=True para permitir segmentação
     target_university = models.CharField(max_length=200, blank=True)
     target_course = models.CharField(max_length=200, blank=True) 
 
@@ -133,8 +129,8 @@ class Announcement(models.Model):
     def __str__(self):
         return f"Anúncio de {self.author.username} para {self.target_course or self.target_university or 'Global'}"
     
-# ... (Reaction, Comment, Community, CommunityMembership, Notification, Conversation, Message) ...
-# (O restante dos modelos permanece o mesmo)
+# --- (Restante dos modelos Reaction, Comment, Community, etc. permanecem iguais) ---
+
 class Reaction(models.Model):
     post = models.ForeignKey(Posts, related_name='reactions', on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name='reactions', on_delete=models.CASCADE) 
