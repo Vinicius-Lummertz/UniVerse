@@ -8,8 +8,8 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Permissões de escrita (PUT, DELETE) só são permitidas para o dono do post.
-        return obj.owner == request.user
+        # Permissão de escrita (PUT, DELETE) para o dono do post OU para qualquer admin.
+        return obj.owner == request.user or request.user.is_staff
     
 class IsCommunityAdmin(permissions.BasePermission):
     """

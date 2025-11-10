@@ -104,9 +104,9 @@ urlpatterns = [
     path('api/notifications/mark-read/', MarkNotificationReadView.as_view(), name='notification-mark-read'),
 
     #admin
-    path('admin/users/', AdminUserListView.as_view(), name='admin-user-list'),
-    path('admin/users/<int:id>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
-    path('admin/posts/', AdminPostListView.as_view(), name='admin-post-list'),
-    path('admin/badges/', BadgeListView.as_view(), name='admin-badge-list'),
+    path('api/admin/users/', AdminUserListView.as_view(), name='admin-user-list'),
+    path('api/admin/users/<int:id>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
+    path('api/admin/posts/', AdminPostListView.as_view(), name='admin-post-list'),
+    path('api/admin/badges/', BadgeListView.as_view(), name='admin-badge-list'),
 
 ]
