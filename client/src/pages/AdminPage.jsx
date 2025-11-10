@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import BottomNav from '../components/BottomNav';
-import { FiUsers, FiFileText } from 'react-icons/fi';
+import { FiUsers, FiFileText, FiShield } from 'react-icons/fi';
 import UserManagementTab from '../components/admin/UserManagementTab';
 import PostManagementTab from '../components/admin/PostManagementTab';
+import BadgeManagementTab from '../components/admin/BadgeManagementTab'; // 1. Importar nova aba
 
 const AdminPage = () => {
-    const [activeTab, setActiveTab] = useState('users'); // 'users' ou 'posts'
+    const [activeTab, setActiveTab] = useState('users'); // 'users', 'posts', ou 'badges'
 
     return (
         <div className="pb-20">
@@ -22,14 +23,22 @@ const AdminPage = () => {
                         className={`tab ${activeTab === 'users' ? 'tab-active' : ''}`}
                         onClick={() => setActiveTab('users')}
                     >
-                        <FiUsers className="mr-2" /> Gerenciar Usuários
+                        <FiUsers className="mr-2" /> Usuários
                     </a>
                     <a
                         role="tab"
                         className={`tab ${activeTab === 'posts' ? 'tab-active' : ''}`}
                         onClick={() => setActiveTab('posts')}
                     >
-                        <FiFileText className="mr-2" /> Moderar Posts
+                        <FiFileText className="mr-2" /> Posts
+                    </a>
+                    {/* 2. Nova Aba de Badges */}
+                    <a
+                        role="tab"
+                        className={`tab ${activeTab === 'badges' ? 'tab-active' : ''}`}
+                        onClick={() => setActiveTab('badges')}
+                    >
+                        <FiShield className="mr-2" /> Badges (Permissões)
                     </a>
                 </div>
 
@@ -38,6 +47,7 @@ const AdminPage = () => {
                     <div className="card-body">
                         {activeTab === 'users' && <UserManagementTab />}
                         {activeTab === 'posts' && <PostManagementTab />}
+                        {activeTab === 'badges' && <BadgeManagementTab />} 
                     </div>
                 </div>
 

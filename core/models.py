@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User 
+from django.db.models import Max # 1. Importar Max
 
 # --- NOVO MODELO: Tag (para #hashtags) ---
 class Tag(models.Model):
@@ -20,10 +21,9 @@ class Posts(models.Model):
     attachment = models.FileField(upload_to='posts/attachments/', blank=True, null=True)
 
     # --- NOVO CAMPO: LIGAÇÃO COM COMUNIDADE (Feature Solicitada) ---
-    # Permite que um post pertença a uma comunidade (opcional)
-    community = models.ForeignKey('Community', # Note as aspas, pois Community é definida depois
+    community = models.ForeignKey('Community', 
                                   related_name='community_posts', 
-                                  on_delete=models.SET_NULL, # Se a comunidade for deletada, o post não é
+                                  on_delete=models.SET_NULL,
                                   null=True, 
                                   blank=True)
 
@@ -33,15 +33,49 @@ class Posts(models.Model):
     def __str__(self):
         return self.title
 
+# --- MODELO ATUALIZADO: Badge (Com Flags de Permissão) ---
 class Badge(models.Model):
     name = models.CharField(max_length=50, unique=True) # "Professor", "Staff UniVerse", "Líder Atlética"
     icon = models.CharField(max_length=50, blank=True) # Opcional: um nome de ícone (ex: 'academic-cap') ou emoji '🧑‍🏫'
     color = models.CharField(max_length=20, default='default') # Cor do badge no DaisyUI (ex: 'primary', 'secondary')
 
+    # --- NOVAS FLAGS DE PERMISSÃO ---
+    # Controla o acesso ao painel de /admin no frontend
+    can_access_admin_panel = models.BooleanField(default=False) 
+    
+    # Controla a criação de anúncios
+    can_send_announcement = models.BooleanField(default=False)
+    
+    # Controla a moderação global (deletar post de outros)
+    can_moderate_global_posts = models.BooleanField(default=False)
+    
+    # (Futuro) Controla moderação de posts apenas em comunidades
+    # can_moderate_community_posts = models.BooleanField(default=False) 
+
+    permissions = models.JSONField(default=dict)
+
+    def save(self, *args, **kwargs):
+        if not self.permissions:
+            self.permissions = {
+                'can_create_posts': False,
+                'can_edit_any_post': False,
+                'can_delete_any_post': False,
+                'can_comment': False,
+                'can_react': False,
+                'can_create_community': False,
+                'can_join_community': False,
+                'can_send_announcement': False,  # Added for professors
+                'max_communities': 0,
+                'can_be_admin': False,
+                'is_professor': False,
+                'is_student': False
+            }
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
-# --- MODELO ATUALIZADO: Profile ---
+# --- MODELO ATUALIZADO: Profile (Com Métodos de Permissão) ---
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     bio = models.TextField(blank=True)
@@ -63,11 +97,26 @@ class Profile(models.Model):
     cover_photo = models.ImageField(upload_to='cover_photos/', null=True, blank=True)
     pronouns = models.CharField(max_length=20, blank=True) # ex: "Ela/Dela"
     
-    # Lista de posts que o usuário salvou (tipo "bookmarks")
     saved_posts = models.ManyToManyField(Posts, blank=True, related_name="saved_by_profiles")
 
     def __str__(self):
         return f'{self.user.username} Profile'
+
+    # --- NOVOS MÉTODOS DE PERMISSÃO ---
+    def has_permission(self, permission_name):
+        """Check if user has permission through any of their badges"""
+        return any(
+            badge.permissions.get(permission_name, False)
+            for badge in self.badges.all()
+        ) or self.user.is_staff
+    
+    @property
+    def is_admin(self):
+        """
+        Propriedade para checar se tem acesso ao painel de admin.
+        Usado pelo AdminRoute no frontend.
+        """
+        return self.has_permission('can_access_admin_panel')
     
 
 class Announcement(models.Model):
@@ -75,63 +124,57 @@ class Announcement(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     
-    # Para quem é este recado?
-    target_university = models.CharField(max_length=200)
-    target_course = models.CharField(max_length=200, blank=True) # Opcional, pode ser para a universidade inteira
+    target_university = models.CharField(max_length=200, blank=True)
+    target_course = models.CharField(max_length=200, blank=True) 
 
     class Meta:
         ordering = ['-timestamp']
 
     def __str__(self):
-        return f"Anúncio de {self.author.username} para {self.target_course}"
+        return f"Anúncio de {self.author.username} para {self.target_course or self.target_university or 'Global'}"
     
-# --- MODELO ATUALIZADO: Reaction ---
+# ... (Reaction, Comment, Community, CommunityMembership, Notification, Conversation, Message) ...
+# (O restante dos modelos permanece o mesmo)
 class Reaction(models.Model):
     post = models.ForeignKey(Posts, related_name='reactions', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, related_name='reactions', on_delete=models.CASCADE) # Adicionado related_name
+    user = models.ForeignKey(User, related_name='reactions', on_delete=models.CASCADE) 
     emoji = models.CharField(max_length=5)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         unique_together = ('post', 'user')
-
         ordering = ['created_at']
 
     def __str__(self):
-
         return f'{self.user.username} reacted {self.emoji} to post {self.post.pk}'
-# --- MODELO ATUALIZADO: Comment ---
+
 class Comment(models.Model):
     post = models.ForeignKey(Posts, related_name='comments', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, related_name='comments', on_delete=models.CASCADE) # Adicionado related_name
+    user = models.ForeignKey(User, related_name='comments', on_delete=models.CASCADE) 
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['created_at'] # Comentários mais antigos primeiro
+        ordering = ['created_at'] 
 
     def __str__(self):
         return f'Comment by {self.user.username} on post {self.post.pk}'
     
     
-# --- NOVOS MODELOS: COMUNIDADES ---
 class Community(models.Model):
-    # --- Features Solicitadas ---
     admin = models.ForeignKey(User, related_name='owned_communities', on_delete=models.CASCADE)
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     
     PRIVACY_CHOICES = [
-        ('public', 'Pública'), # Qualquer um pode entrar
-        ('private', 'Privada'), # Requer aprovação do admin
+        ('public', 'Pública'), 
+        ('private', 'Privada'),
     ]
     privacy = models.CharField(max_length=10, choices=PRIVACY_CHOICES, default='public')
     
-    # Para a sugestão automática baseada no curso
     related_course = models.CharField(max_length=200, blank=True) 
 
-    # --- Features Surpresa ---
     community_image = models.ImageField(upload_to='community_images/', null=True, blank=True)
     cover_image = models.ImageField(upload_to='community_covers/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -148,8 +191,6 @@ class CommunityMembership(models.Model):
         ('pending', 'Pendente'),
         ('approved', 'Aprovado'),
     ]
-    # Se a comunidade for pública, a view vai criar como 'approved' direto
-    # Se for privada, a view vai criar como 'pending'
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='approved')
     
     class Meta:
@@ -158,8 +199,6 @@ class CommunityMembership(models.Model):
     def __str__(self):
         return f'{self.user.username} - {self.community.name} ({self.status})'
 
-
-# --- NOVO MODELO: NOTIFICAÇÕES (Feature Surpresa) ---
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_notifications')
@@ -172,7 +211,6 @@ class Notification(models.Model):
     ]
     verb = models.CharField(max_length=50, choices=VERB_CHOICES)
     
-    # Links opcionais para os objetos (o que foi curtido/comentado)
     post = models.ForeignKey(Posts, on_delete=models.CASCADE, null=True, blank=True)
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE, null=True, blank=True)
     community = models.ForeignKey(Community, on_delete=models.CASCADE, null=True, blank=True)
@@ -187,7 +225,6 @@ class Notification(models.Model):
         return f'{self.sender.username} {self.verb} -> {self.recipient.username}'
 
 class Conversation(models.Model):
-
     participants = models.ManyToManyField(User, related_name="conversations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -196,14 +233,13 @@ class Conversation(models.Model):
         return f"Conversa entre {', '.join([user.username for user in self.participants.all()])}"
 
 class Message(models.Model):
-
     conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
     author = models.ForeignKey(User, related_name='messages', on_delete=models.CASCADE)
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['timestamp'] # Ordena as mensagens da mais antiga para a mais nova
+        ordering = ['timestamp'] 
 
     def __str__(self):
         return f"Mensagem de {self.author.username} em {self.timestamp.strftime('%Y-%m-%d %H:%M')}"

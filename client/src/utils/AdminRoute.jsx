@@ -5,9 +5,10 @@ import AuthContext from '../context/AuthContext';
 
 const AdminRoute = () => {
     const { user } = useContext(AuthContext);
-    console.log(user)
-    // Verifica se o usuário existe E se ele é staff
-    if (user && user.is_staff) {
+    
+    // ATUALIZADO: Verifica a flag de permissão no perfil, 
+    // que é controlada pelos Badges, ou se é Superusuário (is_staff).
+    if (user && (user.profile?.is_admin || user.is_staff)) {
         return <Outlet />; // Permite o acesso à rota aninhada (AdminPage)
     } 
     

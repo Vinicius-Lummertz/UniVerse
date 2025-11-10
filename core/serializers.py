@@ -12,7 +12,12 @@ from .models import (
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
-        fields = '__all__'
+        fields = ['id', 'name', 'permissions']
+
+    def validate_permissions(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Permissions must be a dictionary")
+        return value
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,14 +31,15 @@ class ProfileSerializer(serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField(read_only=True)
     is_following = serializers.SerializerMethodField(read_only=True)
     badges = BadgeSerializer(many=True, read_only=True)
-
+    is_admin = serializers.ReadOnlyField()
     class Meta:
         model = Profile
         fields = [
             'bio', 'profile_pic', 'cover_photo', 'pronouns',
             'followers_count', 'following_count', 'is_following',
             'universidade', 'curso', 'atletica', 'ano_inicio', 'onboarding_complete',
-            'badges', 'saved_posts'
+            'badges', 'saved_posts',
+            'is_admin'
         ]
 
     def get_followers_count(self, obj):

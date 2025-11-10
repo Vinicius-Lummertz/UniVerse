@@ -446,22 +446,30 @@ class AnnouncementListView(generics.ListAPIView):
 
 class AnnouncementCreateView(generics.CreateAPIView):
     """
-    NOVA VIEW: (Professores) Cria um novo recado.
+    (Professores/Staff) Cria um novo recado.
+    Staff pode enviar recados globais/segmentados.
+    Professores só podem enviar para seu próprio curso.
     """
     serializer_class = AnnouncementSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    # 3. LÓGICA DE CRIAÇÃO ATUALIZADA
     def perform_create(self, serializer):
         profile = self.request.user.profile
-        # Verifica se o usuário tem o badge de "Professor"
-        if not profile.badges.filter(name__iexact="Professor").exists():
-            raise serializers.ValidationError("Apenas professores podem enviar anúncios.")
         
-        serializer.save(
-            author=self.request.user,
-            target_university=profile.universidade,
-            target_course=profile.curso
-        )
+        if not (profile.has_permission('can_send_announcement') or self.request.user.is_staff):
+            raise serializers.ValidationError(
+                "Você não tem permissão para enviar anúncios."
+            )
+        
+        if self.request.user.is_staff:
+            serializer.save(author=self.request.user)
+        else:
+            serializer.save(
+                author=self.request.user,
+                target_university=profile.universidade,
+                target_course=profile.curso
+            )
 
 
 class NotificationListView(generics.ListAPIView):
@@ -571,6 +579,15 @@ class AdminUserDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAdminUser] # Protegido!
     lookup_field = 'id' # Vamos buscar por ID para ser mais fácil
 
+class BadgeListCreateAPIView(generics.ListCreateAPIView):
+    """
+    (ADMIN) Lista todos os Badges ou cria um novo Badge.
+    Protegido por: IsAdminUser (is_staff=True)
+    """
+    queryset = Badge.objects.all().order_by('name')
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminUser]
+
 class BadgeListView(generics.ListAPIView):
     """
     (ADMIN) Lista todos os Badges disponíveis.
@@ -579,6 +596,16 @@ class BadgeListView(generics.ListAPIView):
     queryset = Badge.objects.all()
     serializer_class = BadgeSerializer
     permission_classes = [IsAdminUser] # Protegido!
+
+class BadgeDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    (ADMIN) Vê, atualiza ou deleta um Badge específico.
+    Protegido por: IsAdminUser (is_staff=True)
+    """
+    queryset = Badge.objects.all()
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminUser]
+
 
 class AdminPostListView(generics.ListAPIView):
     """

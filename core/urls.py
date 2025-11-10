@@ -50,7 +50,9 @@ from .views import (
     AdminUserListView,
 
     #badge
-    BadgeListView
+    BadgeListView,
+    BadgeListCreateAPIView,
+    BadgeDetailAPIView
 )
 
 # A ordem dos paths está organizada por recurso e respeita
@@ -108,5 +110,7 @@ urlpatterns = [
     path('api/admin/users/<int:id>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
     path('api/admin/posts/', AdminPostListView.as_view(), name='admin-post-list'),
     path('api/admin/badges/', BadgeListView.as_view(), name='admin-badge-list'),
+    path('api/admin/badges/manage/', BadgeListCreateAPIView.as_view(), name='admin-badge-manage-list-create'),
+    path('api/admin/badges/manage/<int:pk>/', BadgeDetailAPIView.as_view(), name='admin-badge-manage-detail'),
 
 ]
