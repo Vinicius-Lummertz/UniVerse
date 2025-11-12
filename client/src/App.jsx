@@ -11,7 +11,8 @@ import ChatListPage from './pages/ChatListPage';
 import ChatDetailPage from './pages/ChatDetailPage';
 import AdminRoute from './utils/AdminRoute';
 import AdminPage from './pages/AdminPage';
-import NotificationsPage from './pages/NotificationsPage'; // 1. Importar a nova página
+import NotificationsPage from './pages/NotificationsPage'; 
+import PostDetailPage from './pages/PostDetailPage'; // 1. Importar a nova página
 
 function App() {
   return (
@@ -24,9 +25,10 @@ function App() {
             <Route path="/following" element={<FollowingFeedPage />} />
             <Route path="/chat" element={<ChatListPage />} />
             <Route path="/chat/:id" element={<ChatDetailPage />} />
-            
-            {/* 2. Substituir a rota de recados pela nova rota de notificações */}
             <Route path="/notifications" element={<NotificationsPage />} />
+            
+            {/* 2. ADICIONAR A NOVA ROTA DE POST */}
+            <Route path="/posts/:id" element={<PostDetailPage />} />
             
             <Route element={<AdminRoute />} >
               <Route path='/admin' element={ <AdminPage /> } />

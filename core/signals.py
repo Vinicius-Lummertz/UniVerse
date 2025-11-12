@@ -41,7 +41,7 @@ def create_comment_notification(sender, instance, created, **kwargs):
             Notification.objects.create(
                 recipient=recipient,
                 sender=sender,
-                verb='comment',
+                verb='comentou',
                 post=instance.post,
                 comment=instance
             )

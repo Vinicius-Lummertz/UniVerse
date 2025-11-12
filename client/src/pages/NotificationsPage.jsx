@@ -5,17 +5,15 @@ import BottomNav from '../components/BottomNav';
 import AuthContext from '../context/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
 import toast from 'react-hot-toast';
-import { FiBell, FiAlertTriangle, FiUserCheck, FiMessageSquare, FiAward } from 'react-icons/fi';
+import { FiBell, FiAlertTriangle, FiUserCheck, FiMessageSquare, FiAward, FiHeart } from 'react-icons/fi'; // 1. Importar FiHeart
 import { Link } from 'react-router-dom';
 
 const NotificationsPage = () => {
-    const [activeTab, setActiveTab] = useState('announcements'); // 'announcements' ou 'social'
+    const [activeTab, setActiveTab] = useState('announcements'); 
     
-    // Coluna 1: Avisos (Recados)
     const [announcements, setAnnouncements] = useState([]);
     const [loadingAnn, setLoadingAnn] = useState(true);
 
-    // Coluna 2: Notificações (Social)
     const [notifications, setNotifications] = useState([]);
     const [loadingSoc, setLoadingSoc] = useState(true);
 
@@ -29,32 +27,28 @@ const NotificationsPage = () => {
                 const response = await axiosInstance.get('/api/announcements/');
                 setAnnouncements(response.data);
                 
-                // IDs dos recados que ainda não foram lidos
                 const unreadIds = response.data
-                    .filter(ann => !ann.read_by.includes(user.id))
+                    .filter(ann => ann.read_by && !ann.read_by.includes(user.id))
                     .map(ann => ann.id);
 
-                // Se houver recados não lidos, marca-os como lidos
                 if (unreadIds.length > 0) {
                     await axiosInstance.post('/api/announcements/mark-read/', { ids: unreadIds });
-                    // Atualiza o contador global no sino
                     fetchNotificationStatus(); 
                 }
             } catch (error) {
                 if (error.response?.status !== 401) {
                     toast.error("Não foi possível carregar os avisos.");
-                    console.error(error)
                 }
+                console.error("Erro em fetchAnnouncements:", error); 
             } finally {
                 setLoadingAnn(false);
             }
         };
 
         fetchAnnouncements();
-    }, [user.id, fetchNotificationStatus]); // Depende do user.id
+    }, [user.id, fetchNotificationStatus]); 
 
     // Busca Notificações (Social)
-    // Roda apenas quando a aba 'social' é clicada
     useEffect(() => {
         const fetchSocialNotifications = async () => {
             setLoadingSoc(true);
@@ -77,20 +71,63 @@ const NotificationsPage = () => {
             }
         };
 
-        // Só busca as notificações sociais se a aba for clicada
         if (activeTab === 'social') {
             fetchSocialNotifications();
         }
-    }, [activeTab, fetchNotificationStatus]); // Depende do activeTab
+    }, [activeTab, fetchNotificationStatus]); 
 
-    // Helper para renderizar ícones
+    // 2. Atualizar Helper de Ícone
     const NotificationIcon = ({ verb }) => {
         if (verb === 'follow') return <FiUserCheck className="text-info" />;
         if (verb === 'comment') return <FiMessageSquare className="text-success" />;
-        if (verb ===a== 'reaction') return <span className="text-warning">❤️</span>; // Exemplo
+        if (verb === 'reaction') return <FiHeart className="text-error" />; // Alterado para FiHeart
         if (verb === 'membership_approved') return <FiAward className="text-primary" />;
         return <FiBell />;
     };
+
+    // 3. Helper para criar o texto e o link da notificação
+    const NotificationLink = ({ notif }) => {
+        const senderLink = (
+            <Link to={`/profile/${notif.sender_username}`} className="font-bold link link-hover">
+                {notif.sender_username}
+            </Link>
+        );
+
+        // Caso 1: Notificação de Post (Comentário ou Reação)
+        if (notif.post_id) {
+            return (
+                <p>
+                    {senderLink}
+                    {' '}{notif.verb}
+                    <Link to={`/posts/${notif.post_id}`} className="font-semibold italic link link-hover ml-1">
+                        "{notif.post_title || 'seu post'}"
+                    </Link>
+                </p>
+            );
+        }
+
+        // Caso 2: Notificação de Comunidade
+        if (notif.community_id) {
+            return (
+                 <p>
+                    {senderLink}
+                    {' '}{notif.verb}
+                    <Link to={`/communities/${notif.community_id}`} className="font-semibold italic link link-hover ml-1">
+                        {notif.community_name || 'sua comunidade'}
+                    </Link>
+                </p>
+            );
+        }
+        
+        // Caso 3: Notificação de Follow (sem link de post)
+        if (notif.verb === 'follow') {
+             return <p>{senderLink} {notif.verb}</p>;
+        }
+
+        // Caso Genérico
+        return <p>{senderLink} {notif.verb}</p>;
+    };
+
 
     return (
         <>
@@ -153,17 +190,13 @@ const NotificationsPage = () => {
                                         <p className="text-base-content/70 text-center p-4">Nenhuma notificação social ainda.</p>
                                     )}
                                     {notifications.map(notif => (
-                                        <div key={notif.id} className="flex gap-4 p-3 border-b border-base-200">
-                                            <NotificationIcon verb={notif.verb} />
+                                        // 4. Renderiza a linha da notificação
+                                        <div key={notif.id} className="flex gap-4 p-3 border-b border-base-200 items-center">
+                                            <div className="flex-shrink-0">
+                                                <NotificationIcon verb={notif.verb} />
+                                            </div>
                                             <div className="flex-grow">
-                                                <p>
-                                                    <Link to={`/profile/${notif.sender_username}`} className="font-bold link link-hover">
-                                                        {notif.sender_username}
-                                                    </Link>
-                                                    {' '}{notif.verb}
-                                                    {notif.post_id && <span className="font-semibold"> seu post.</span>}
-                                                    {notif.community_id && <span className="font-semibold"> sua comunidade.</span>}
-                                                </p>
+                                                <NotificationLink notif={notif} />
                                             </div>
                                             <time className="text-xs text-base-content/60 flex-shrink-0">
                                                 {new Date(notif.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}

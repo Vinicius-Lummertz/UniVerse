@@ -268,12 +268,11 @@ class UserSearchSerializer(serializers.ModelSerializer):
 # --- SERIALIZER FALTANTE (NOTIFICAÇÕES) ---
 
 class NotificationSerializer(serializers.ModelSerializer):
-    """
-    Serializa os dados de uma notificação para a API.
-    """
     sender_username = serializers.ReadOnlyField(source='sender.username')
     post_id = serializers.ReadOnlyField(source='post.id')
+    post_title = serializers.ReadOnlyField(source='post.title', allow_null=True)
     community_id = serializers.ReadOnlyField(source='community.id')
+    community_name = serializers.ReadOnlyField(source='community.name', allow_null=True)
     
     class Meta:
         model = Notification
@@ -281,8 +280,10 @@ class NotificationSerializer(serializers.ModelSerializer):
             'id', 
             'sender_username', 
             'verb',         
-            'post_id',      
+            'post_id',
+            'post_title', 
             'community_id', 
+            'community_name',
             'read',         
             'timestamp'
         ]
