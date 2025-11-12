@@ -1,8 +1,9 @@
+# core/views.py
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from django.db.models import Count
+from django.db.models import Count, Q # 1. IMPORTAR Q
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User 
 from django_filters.rest_framework import DjangoFilterBackend 
@@ -27,22 +28,15 @@ from .permissions import IsOwnerOrReadOnly, IsCommunityAdmin, IsAdminUser
 # ==============================================================================
 
 class PostListAPIView(generics.ListCreateAPIView):
-    """
-    Lista todos os posts (para o feed global) ou cria um novo post.
-    O feed global é público (AllowAny).
-    """
-    # queryset = Posts.objects.all().order_by('-createdAt') # Movido para get_queryset
     serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Permite leitura anônima
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly] 
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['owner__username']
 
     def get_queryset(self):
-        # Filtra posts para mostrar apenas posts "globais" (não de comunidade)
         return Posts.objects.filter(community__isnull=True).order_by('-createdAt')
 
     def perform_create(self, serializer):
-        # Associa o post ao usuário logado
         serializer.save(owner=self.request.user)
 
     def get_serializer_context(self):
@@ -50,10 +44,6 @@ class PostListAPIView(generics.ListCreateAPIView):
 
 
 class PostDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Vê, atualiza ou deleta um post específico.
-    Protegido por: (Dono do Post) ou (Admin Global/Staff)
-    """
     queryset = Posts.objects.all()
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
@@ -63,10 +53,6 @@ class PostDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class ReactionCreateDeleteView(APIView):
-    """
-    Cria, atualiza ou deleta uma reação a um post.
-    Se o usuário clica no mesmo emoji, a reação é removida.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, post_pk):
@@ -94,9 +80,6 @@ class ReactionCreateDeleteView(APIView):
 
 
 class CommentListCreateView(generics.ListCreateAPIView):
-    """
-    Lista todos os comentários de um post ou cria um novo comentário.
-    """
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -114,38 +97,26 @@ class CommentListCreateView(generics.ListCreateAPIView):
 # ==============================================================================
 
 class UserCreateAPIView(generics.CreateAPIView):
-    """
-    Registra um novo usuário.
-    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.AllowAny] # Permite registro anônimo
+    permission_classes = [permissions.AllowAny] 
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
-    """
-    View de Login (Obtenção de Token JWT).
-    """
     serializer_class = MyTokenObtainPairSerializer
 
 
 class UserDetailView(generics.RetrieveAPIView):
-    """
-    Vê os detalhes de um perfil de usuário (pelo username).
-    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = 'username'
-    permission_classes = [permissions.AllowAny] # Permite ver perfis publicamente
+    permission_classes = [permissions.AllowAny] 
 
     def get_serializer_context(self):
         return {'request': self.request}
 
 
 class UserUpdateView(generics.RetrieveUpdateAPIView):
-    """
-    Permite ao usuário logado atualizar seus dados básicos (nome, email).
-    """
     serializer_class = UserUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -154,9 +125,6 @@ class UserUpdateView(generics.RetrieveUpdateAPIView):
 
 
 class ProfileUpdateView(generics.RetrieveUpdateAPIView):
-    """
-    Permite ao usuário logado atualizar seu perfil (bio, foto, universidade, etc.).
-    """
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -166,9 +134,6 @@ class ProfileUpdateView(generics.RetrieveUpdateAPIView):
 
 
 class UserDeleteView(generics.DestroyAPIView):
-    """
-    Permite ao usuário logado deletar sua própria conta.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
@@ -176,12 +141,9 @@ class UserDeleteView(generics.DestroyAPIView):
 
 
 class UserSearchView(generics.ListAPIView):
-    """
-    Busca usuários pelo username.
-    """
     serializer_class = UserSearchSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [] # Desabilita o filtro global do DRF
+    filter_backends = [] 
 
     def get_queryset(self):
         query = self.request.query_params.get('q', None)
@@ -194,9 +156,6 @@ class UserSearchView(generics.ListAPIView):
 # ==============================================================================
 
 class FollowUserView(APIView):
-    """
-    Adiciona ou remove um usuário da lista de "seguindo".
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, username):
@@ -214,16 +173,12 @@ class FollowUserView(APIView):
 
 
 class FollowingPostsFeedView(generics.ListAPIView):
-    """
-    Retorna o feed de posts dos usuários que você segue.
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
         following_profiles = user.profile.following.all()
-        # Filtra posts "globais" (sem comunidade) dos perfis que o usuário segue
         return Posts.objects.filter(
             owner__profile__in=following_profiles, 
             community__isnull=True
@@ -234,9 +189,6 @@ class FollowingPostsFeedView(generics.ListAPIView):
 
 
 class ToggleSavePostView(APIView):
-    """
-    NOVA VIEW: Adiciona ou remove um post da lista de "Salvos" do usuário.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, post_pk):
@@ -252,9 +204,6 @@ class ToggleSavePostView(APIView):
 
 
 class SavedPostListView(generics.ListAPIView):
-    """
-    NOVA VIEW: Retorna a lista de posts salvos (bookmarks) do usuário logado.
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -266,15 +215,12 @@ class SavedPostListView(generics.ListAPIView):
 
 
 class HashtagPostListView(generics.ListAPIView):
-    """
-    NOVA VIEW: Retorna posts (globais) que contêm uma #hashtag específica.
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         tag_name = self.kwargs['tag_name']
-        tag = get_object_or_404(Tag, name__iexact=tag_name) # __iexact ignora case
+        tag = get_object_or_404(Tag, name__iexact=tag_name) 
         return tag.posts.filter(community__isnull=True).order_by('-createdAt')
     
     def get_serializer_context(self):
@@ -285,9 +231,6 @@ class HashtagPostListView(generics.ListAPIView):
 # ==============================================================================
 
 class CommunityCreateView(generics.CreateAPIView):
-    """
-    NOVA VIEW: Cria uma nova comunidade (define o usuário como admin).
-    """
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -297,34 +240,24 @@ class CommunityCreateView(generics.CreateAPIView):
 
 
 class CommunityListView(generics.ListAPIView):
-    """
-    NOVA VIEW: Lista todas as comunidades (para a página "Explorar").
-    """
     queryset = Community.objects.all().order_by('name')
     serializer_class = CommunitySerializer
     permission_classes = [permissions.AllowAny]
 
 
 class CommunityDetailView(generics.RetrieveAPIView):
-    """
-    NOVA VIEW: Vê os detalhes de uma comunidade.
-    """
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
     permission_classes = [permissions.AllowAny]
 
 
 class JoinCommunityView(APIView):
-    """
-    NOVA VIEW: Permite ao usuário logado "entrar" ou "solicitar entrada" em uma comunidade.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, community_id):
         community = get_object_or_404(Community, id=community_id)
         user = request.user
 
-        # Verifica se já é membro ou se a solicitação está pendente
         if CommunityMembership.objects.filter(user=user, community=community).exists():
             return Response({"error": "Você já é membro ou sua solicitação está pendente."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -337,42 +270,26 @@ class JoinCommunityView(APIView):
 
 
 class ApproveMemberView(APIView):
-    """
-    NOVA VIEW: (Admin da Comunidade) Aprova uma solicitação pendente.
-    """
     permission_classes = [permissions.IsAuthenticated, IsCommunityAdmin]
 
     def post(self, request, membership_id):
         membership = get_object_or_404(CommunityMembership, id=membership_id)
-        # Checagem de permissão (extra)
         self.check_object_permission(request, membership) 
         
         if membership.status == 'pending':
             membership.status = 'approved'
             membership.save()
-            # Criar notificação para o usuário (lógica futura)
             return Response({"status": "approved"}, status=status.HTTP_200_OK)
         return Response({"error": "Membro já estava aprovado."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RemoveMemberView(generics.DestroyAPIView):
-    """
-    NOVA VIEW: (Admin da Comunidade OU o próprio usuário) Remove um membro.
-    """
     queryset = CommunityMembership.objects.all()
     serializer_class = CommunityMembershipSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def check_object_permission(self, request, obj):
-        # Permite se: 1. Você é o Admin da Comunidade OU 2. Você está tentando sair (é o seu próprio membership)
-        if not (obj.community.admin == request.user or obj.user == request.user):
-            self.permission_denied(request)
+    permission_classes = [permissions.IsAuthenticated, IsCommunityAdmin] 
 
 
 class CommunityFeedView(generics.ListAPIView):
-    """
-    NOVA VIEW: Retorna o feed de posts de uma comunidade específica.
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -380,7 +297,6 @@ class CommunityFeedView(generics.ListAPIView):
         community_id = self.kwargs['community_id']
         community = get_object_or_404(Community, id=community_id)
         
-        # Verifica se o usuário é membro aprovado
         if not community.members.filter(user=self.request.user, status='approved').exists():
             raise serializers.ValidationError("Você não é membro desta comunidade.")
             
@@ -391,9 +307,6 @@ class CommunityFeedView(generics.ListAPIView):
 
 
 class CommunityPostCreateView(generics.CreateAPIView):
-    """
-    NOVA VIEW: Cria um post dentro de uma comunidade específica.
-    """
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -401,7 +314,6 @@ class CommunityPostCreateView(generics.CreateAPIView):
         community_id = self.kwargs['community_id']
         community = get_object_or_404(Community, id=community_id)
         
-        # Verifica se o usuário é membro aprovado
         if not community.members.filter(user=self.request.user, status='approved').exists():
             raise serializers.ValidationError("Você não é membro desta comunidade.")
         
@@ -409,46 +321,51 @@ class CommunityPostCreateView(generics.CreateAPIView):
 
 
 class FindCommunityByCourseView(generics.ListAPIView):
-    """
-    NOVA VIEW: Encontra comunidades pelo nome do curso (para onboarding).
-    """
     serializer_class = CommunitySerializer
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         course = self.request.query_params.get('course', None)
         if course:
-            # Retorna comunidades que batem (parcialmente, sem case) com o nome do curso
             return Community.objects.filter(related_course__icontains=course)
         return Community.objects.none()
 
 # ==============================================================================
-# VIEWS DE ANÚNCIOS E NOTIFICAÇÕES (Novas)
+# VIEWS DE ANÚNCIOS E NOTIFICAÇÕES (ATUALIZADAS)
 # ==============================================================================
 
 class AnnouncementListView(generics.ListAPIView):
     """
-    NOVA VIEW: (Alunos) Lista recados do curso/universidade.
+    (Alunos) Lista recados globais, da universidade ou do curso.
     """
     serializer_class = AnnouncementSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    # 2. LÓGICA DE FILTRAGEM ATUALIZADA
     def get_queryset(self):
         profile = self.request.user.profile
+        
         if not profile.onboarding_complete:
             return Announcement.objects.none()
         
+        # 1. Global (sem universidade E sem curso)
+        global_ann = Q(target_university="", target_course="")
+        
+        # 2. Universidade Específica (sem curso)
+        uni_ann = Q(target_university=profile.universidade, target_course="")
+        
+        # 3. Curso Específico
+        course_ann = Q(target_university=profile.universidade, target_course=profile.curso)
+
+        # Retorna a união (OR) dos três filtros
         return Announcement.objects.filter(
-            target_university=profile.universidade,
-            target_course=profile.curso
-        ).order_by('-timestamp')
+            global_ann | uni_ann | course_ann
+        ).distinct().order_by('-timestamp')
 
 
 class AnnouncementCreateView(generics.CreateAPIView):
     """
     (Professores/Staff) Cria um novo recado.
-    Staff pode enviar recados globais/segmentados.
-    Professores só podem enviar para seu próprio curso.
     """
     serializer_class = AnnouncementSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -457,14 +374,16 @@ class AnnouncementCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         profile = self.request.user.profile
         
-        if not (profile.has_permission('can_send_announcement') or self.request.user.is_staff):
-            raise serializers.ValidationError(
-                "Você não tem permissão para enviar anúncios."
-            )
+        # 3a. Checa permissão geral
+        if not profile.has_permission('can_send_announcement'):
+            raise serializers.ValidationError("Você não tem permissão para enviar anúncios.")
         
+        # 3b. Se for Staff/Superuser, eles podem enviar o que quiserem do payload
         if self.request.user.is_staff:
-            serializer.save(author=self.request.user,)
+            # O serializer usará 'target_university' e 'target_course' vindos do request
+            serializer.save(author=self.request.user)
         else:
+            # 3c. Se for Professor (não-staff), força o target para o perfil dele
             serializer.save(
                 author=self.request.user,
                 target_university=profile.universidade,
@@ -474,42 +393,96 @@ class AnnouncementCreateView(generics.CreateAPIView):
 
 class NotificationListView(generics.ListAPIView):
     """
-    NOVA VIEW: Lista as notificações do usuário logado.
+    Lista as notificações sociais (likes, comments) do usuário logado.
     """
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return self.request.user.notifications.all() # .all() já usa o ordering do Meta
+        # Retorna todas (lidas e não lidas)
+        return self.request.user.notifications.all() 
 
 
 class MarkNotificationReadView(APIView):
     """
-    NOVA VIEW: Marca notificações específicas (ou todas) como lidas.
+    Marca notificações sociais (like/comment) como lidas.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        ids = request.data.get('ids', None) # Recebe uma lista de IDs
-        mark_all = request.data.get('all', False)
-        user = request.user
+        # Marca todas as sociais como lidas
+        request.user.notifications.filter(read=False).update(read=True)
+        return Response(status=status.HTTP_200_OK)
+    
+# --- NOVAS VIEWS PARA O ÍCONE DE SINO ---
 
-        if mark_all:
-            user.notifications.filter(read=False).update(read=True)
-            return Response({"status": "all marked as read"}, status=status.HTTP_200_OK)
+class NotificationStatusView(APIView):
+    """
+    Retorna a contagem de notificações sociais E recados não lidos
+    para o ícone da "bolinha" priorizada.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        profile = user.profile
+
+        # 1. Contagem de Recados (Alta Prioridade - Vermelha)
+        unread_announcements_count = 0
+        if profile.onboarding_complete:
+            global_ann = Q(target_university="", target_course="")
+            uni_ann = Q(target_university=profile.universidade, target_course="")
+            course_ann = Q(target_university=profile.universidade, target_course=profile.curso)
+            
+            unread_announcements_count = Announcement.objects.filter(
+                global_ann | uni_ann | course_ann
+            ).exclude(
+                read_by=user # Exclui os que o usuário já leu
+            ).distinct().count()
+
+        # 2. Contagem Social (Baixa Prioridade - Roxa)
+        unread_social_count = user.notifications.filter(read=False).count()
+
+        return Response({
+            'unread_announcements_count': unread_announcements_count,
+            'unread_social_count': unread_social_count
+        })
+
+class MarkAnnouncementReadView(APIView):
+    """
+    Marca um recado (ou vários) como lido pelo usuário logado.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        ids_to_mark = request.data.get('ids', None)
         
-        if ids and isinstance(ids, list):
-            user.notifications.filter(id__in=ids, read=False).update(read=True)
-            return Response({"status": "selected marked as read"}, status=status.HTTP_200_OK)
+        if ids_to_mark and isinstance(ids_to_mark, list):
+            # Filtra apenas os recados que o usuário pode ver
+            profile = request.user.profile
+            global_ann = Q(target_university="", target_course="")
+            uni_ann = Q(target_university=profile.universidade, target_course="")
+            course_ann = Q(target_university=profile.universidade, target_course=profile.curso)
+            
+            announcements = Announcement.objects.filter(
+                (global_ann | uni_ann | course_ann) & Q(id__in=ids_to_mark)
+            ).distinct()
+            
+            # Adiciona o usuário ao M2M 'read_by'
+            request.user.read_announcements.add(*announcements)
+            return Response(status=status.HTTP_200_OK)
         
-        return Response({"error": "Nenhum ID fornecido ou 'all:true' não foi setado."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Lista de 'ids' inválida."}, status=status.HTTP_400_BAD_REQUEST)
+
+# ==============================================================================
+# VIEWS DE CHAT (Existentes)
+# ==============================================================================
     
 class StartConversationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, username):
         try:
-            # Encontra o usuário com quem se quer conversar
             other_user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response({"error": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
@@ -517,9 +490,6 @@ class StartConversationView(APIView):
         if other_user == request.user:
             return Response({"error": "Você não pode iniciar uma conversa consigo mesmo."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Tenta encontrar uma conversa 1-para-1 que já exista
-        # Filtra conversas que têm EXATAMENTE 2 participantes
-        # E que contenham o usuário logado E o outro usuário
         conversation = Conversation.objects.annotate(
             participant_count=Count('participants')
         ).filter(
@@ -529,7 +499,6 @@ class StartConversationView(APIView):
             participants=other_user
         ).first()
 
-        # Se a conversa não existir, cria uma nova
         if not conversation:
             conversation = Conversation.objects.create()
             conversation.participants.add(request.user, other_user)
@@ -542,24 +511,23 @@ class ConversationListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Filtra as conversas onde o usuário logado é um participante
         return self.request.user.conversations.all().order_by('-updated_at')
 
-# NOVA VIEW: Listar todas as mensagens de uma conversa (histórico)
 class MessageListView(generics.ListAPIView):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Pega o ID da conversa da URL
         conversation_id = self.kwargs['conversation_id']
         try:
-            # Garante que o usuário logado é participante desta conversa
             conversation = self.request.user.conversations.get(id=conversation_id)
             return conversation.messages.all()
         except Conversation.DoesNotExist:
-            # Se não for participante, não retorna nada
             return Message.objects.none()
+
+# ==============================================================================
+# VIEWS DO PAINEL ADMIN (Existentes e Novas)
+# ==============================================================================
         
 class AdminUserListView(generics.ListAPIView):
     """
@@ -567,17 +535,34 @@ class AdminUserListView(generics.ListAPIView):
     """
     queryset = User.objects.all().order_by('username')
     serializer_class = AdminUserSerializer
-    permission_classes = [IsAdminUser] # Protegido!
+    permission_classes = [IsAdminUser] 
 
 class AdminUserDetailView(generics.RetrieveUpdateAPIView):
     """
     (ADMIN) Vê ou Atualiza um usuário específico.
-    É aqui que você vai dar o badge de "Professor".
     """
     queryset = User.objects.all()
     serializer_class = AdminUserSerializer
-    permission_classes = [IsAdminUser] # Protegido!
-    lookup_field = 'id' # Vamos buscar por ID para ser mais fácil
+    permission_classes = [IsAdminUser] 
+    lookup_field = 'id' 
+
+class BadgeListView(generics.ListAPIView):
+    """
+    (ADMIN) Lista todos os Badges disponíveis (para Atribuição).
+    """
+    queryset = Badge.objects.all()
+    serializer_class = BadgeSerializer
+    permission_classes = [IsAdminUser] 
+
+class AdminPostListView(generics.ListAPIView):
+    """
+    (ADMIN) Lista TODOS os posts para gerenciamento.
+    """
+    queryset = Posts.objects.all().order_by('createdAt')
+    serializer_class = PostSerializer
+    permission_classes = [IsAdminUser] 
+
+# --- CRUD DE BADGES ---
 
 class BadgeListCreateAPIView(generics.ListCreateAPIView):
     """
@@ -586,16 +571,7 @@ class BadgeListCreateAPIView(generics.ListCreateAPIView):
     """
     queryset = Badge.objects.all().order_by('name')
     serializer_class = BadgeSerializer
-    permission_classes = [IsAdminUser]
-
-class BadgeListView(generics.ListAPIView):
-    """
-    (ADMIN) Lista todos os Badges disponíveis.
-    (Usado para popular o "select" no painel de admin).
-    """
-    queryset = Badge.objects.all()
-    serializer_class = BadgeSerializer
-    permission_classes = [IsAdminUser] # Protegido!
+    permission_classes = [IsAdminUser] 
 
 class BadgeDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -605,12 +581,3 @@ class BadgeDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Badge.objects.all()
     serializer_class = BadgeSerializer
     permission_classes = [IsAdminUser]
-
-
-class AdminPostListView(generics.ListAPIView):
-    """
-    (ADMIN) Lista TODOS os posts para gerenciamento.
-    """
-    queryset = Posts.objects.all().order_by('createdAt')
-    serializer_class = PostSerializer
-    permission_classes = [IsAdminUser] # Protegido!

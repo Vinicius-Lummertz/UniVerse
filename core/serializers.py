@@ -220,7 +220,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Announcement
-        fields = ['id', 'author', 'content', 'timestamp', 'target_course', 'target_university']
+        fields = ['id', 'author', 'content', 'timestamp', 'target_course', 'target_university', 'read_by']
 
 # --- SERIALIZERS DO CHAT ---
 

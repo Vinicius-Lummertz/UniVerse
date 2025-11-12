@@ -1,3 +1,4 @@
+# core/models.py
 from django.db import models
 from django.contrib.auth.models import User 
 from django.db.models import Max, Q # 1. Importar Q
@@ -36,24 +37,18 @@ class Badge(models.Model):
     icon = models.CharField(max_length=50, blank=True) 
     color = models.CharField(max_length=20, default='default') 
 
-    # --- CAMPO DE PERMISSÃO ATUALIZADO ---
-    # Substitui os BooleanFields individuais por um JSONField
     permissions = models.JSONField(default=dict, blank=True)
 
-    # 2. Adiciona o método save sugerido para popular defaults
     def save(self, *args, **kwargs):
-        # Define um schema padrão se estiver vazio
         default_perms = {
             'can_access_admin_panel': False,
             'can_send_announcement': False,
             'can_moderate_global_posts': False
         }
         
-        # Garante que o dict 'permissions' exista e tenha as chaves padrão
         if not self.permissions:
              self.permissions = default_perms
         else:
-            # Garante que novas chaves sejam adicionadas se faltarem
             for key, value in default_perms.items():
                 self.permissions.setdefault(key, value)
                 
@@ -86,30 +81,15 @@ class Profile(models.Model):
     def __str__(self):
         return f'{self.user.username} Profile'
 
-    # --- MÉTODO DE PERMISSÃO ATUALIZADO ---
     def has_permission(self, permission_name):
-        """
-        Verifica se o usuário tem uma permissão específica com base em QUALQUER
-        um de seus badges, consultando o JSONField.
-        Ex: profile.has_permission('can_send_announcement')
-        """
-        # 3. Superusuários (staff) sempre têm permissão
         if self.user.is_staff:
             return True
             
-        # 4. Constroem a query para o JSONField
-        # Ex: permissions__can_send_announcement=True
         query_filter = {f'permissions__{permission_name}': True}
-        
-        # 5. Verifica se *algum* badge associado tem essa flag ativada
         return self.badges.filter(**query_filter).exists()
     
     @property
     def is_admin(self):
-        """
-        Propriedade para checar se tem acesso ao painel de admin.
-        """
-        # 6. Usa o novo método has_permission
         return self.has_permission('can_access_admin_panel')
     
 
@@ -119,9 +99,11 @@ class Announcement(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     
-    # 7. Ambos são blank=True para permitir segmentação
     target_university = models.CharField(max_length=200, blank=True)
     target_course = models.CharField(max_length=200, blank=True) 
+
+    # 2. NOVO CAMPO PARA RASTREAR LEITURAS
+    read_by = models.ManyToManyField(User, related_name="read_announcements", blank=True)
 
     class Meta:
         ordering = ['-timestamp']

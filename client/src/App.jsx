@@ -4,14 +4,14 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import PrivateRoute from './utils/PrivateRoute';
-import { Toaster } from 'react-hot-toast'; // 1. Importe o Toaster
+import { Toaster } from 'react-hot-toast'; 
 import ProfilePage from './pages/ProfilePage';
 import FollowingFeedPage from './pages/FollowingFeedPage';
 import ChatListPage from './pages/ChatListPage';
 import ChatDetailPage from './pages/ChatDetailPage';
 import AdminRoute from './utils/AdminRoute';
 import AdminPage from './pages/AdminPage';
-import AnnouncementsPage from './pages/AnnouncementsPage';
+import NotificationsPage from './pages/NotificationsPage'; // 1. Importar a nova página
 
 function App() {
   return (
@@ -24,7 +24,10 @@ function App() {
             <Route path="/following" element={<FollowingFeedPage />} />
             <Route path="/chat" element={<ChatListPage />} />
             <Route path="/chat/:id" element={<ChatDetailPage />} />
-            <Route path="/announcements" element={<AnnouncementsPage />} />
+            
+            {/* 2. Substituir a rota de recados pela nova rota de notificações */}
+            <Route path="/notifications" element={<NotificationsPage />} />
+            
             <Route element={<AdminRoute />} >
               <Route path='/admin' element={ <AdminPage /> } />
             </Route>

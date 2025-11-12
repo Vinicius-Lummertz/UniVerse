@@ -4,33 +4,50 @@ import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import ThemeSwitcher from './ThemeSwitcher';
 import SearchUser from './SearchUser'; 
+import { FiBell } from 'react-icons/fi'; // 1. Importar o ícone de Sino
 
 const Navbar = () => {
-    const { user, logoutUser } = useContext(AuthContext);
+    // 2. Obter contagens do contexto
+    const { user, logoutUser, unreadAnnouncements, unreadSocial } = useContext(AuthContext);
 
-    const profilePicUrl = user?.profile?.profile_pic || '/default-avatar.png';
+    const profilePicUrl = user?.profile?.profile_pic || '/avatar-default.svg';
     const username = user?.username;
-    
-    // ATUALIZADO: Verificação de permissão (is_staff ou is_admin do perfil)
     const canAccessAdmin = user?.is_staff || user?.profile?.is_admin;
+
+    // 3. Lógica de prioridade da "bolinha"
+    const hasHighPriorityNotif = unreadAnnouncements > 0;
+    const hasLowPriorityNotif = unreadSocial > 0;
+    const showIndicator = hasHighPriorityNotif || hasLowPriorityNotif;
+    
+    // Vermelho (badge-error) para recados, Roxo (badge-secondary) para social
+    const indicatorColor = hasHighPriorityNotif ? 'badge-error' : 'badge-secondary';
 
     if (!user) return null;
 
     return (
         <div className="navbar bg-base-200 shadow-lg sticky top-0 z-30">
-            {/* Start: Logo */}
             <div className="navbar-start">
                 <Link to="/" className="btn btn-ghost text-xl">UniVerse</Link>
             </div>
 
-            {/* Center: Vazio */}
             <div className="navbar-center hidden lg:flex"></div>
 
-            {/* End: Busca e Perfil */}
-            <div className="navbar-end gap-2 items-center"> 
-
+            <div className="navbar-end gap-2 items-center">
                 <SearchUser />
 
+                {/* 4. NOVO ÍCONE DE SINO */}
+                <Link to="/notifications" className="btn btn-ghost btn-circle">
+                    {/* Usa o 'indicator' do DaisyUI */}
+                    <div className="indicator">
+                        {/* Define a cor da "bolinha" com base na prioridade */}
+                        {showIndicator && (
+                            <span className={`indicator-item badge badge-xs ${indicatorColor}`}></span>
+                        )}
+                        <FiBell size={20} />
+                    </div>
+                </Link>
+
+                {/* Dropdown de Perfil */}
                 <div className="dropdown dropdown-end">
                      <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
                         <div className="w-10 rounded-full">
@@ -40,12 +57,10 @@ const Navbar = () => {
                     <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-300 rounded-box w-52">
                         <li><Link to={`/profile/${username}`} className="justify-between">Perfil</Link></li>
                         
-                        {/* 1. Adicionar Link para Recados */}
-                        <li><Link to="/announcements">Recados</Link></li>
+                        {/* 5. REMOVIDO o link de Recados daqui */}
                         
                         <li><a>Configurações</a></li>
                         
-                        {/* 2. Usar a nova variável canAccessAdmin */}
                         {canAccessAdmin && (
                             <li><Link to="/admin" className="text-warning font-bold">Painel Admin</Link></li>
                         )}

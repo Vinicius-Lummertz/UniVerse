@@ -1,4 +1,5 @@
-import { createContext, useState, useEffect, useMemo } from 'react';
+// src/context/AuthContext.jsx
+import { createContext, useState, useEffect, useMemo, useCallback } from 'react'; // 1. Adicionar useCallback
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -12,16 +13,32 @@ export const AuthProvider = ({ children }) => {
         localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null
     );
     
-    // CORREÇÃO: Inicializa o usuário a partir do 'userInfo', não do 'authTokens'
     const [user, setUser] = useState(() => 
         localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')) : null
     );
     
-    // NOVO ESTADO (Fase 1.2)
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
     
-    const [loading, setLoading] = useState(true); // Estado de loading para checagem inicial
+    // 2. NOVOS ESTADOS PARA O ÍCONE DE SINO
+    const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
+    const [unreadSocial, setUnreadSocial] = useState(0);
+    
+    const [loading, setLoading] = useState(true); 
     const navigate = useNavigate();
+
+    // 3. NOVA FUNÇÃO (useCallback para estabilidade)
+    const fetchNotificationStatus = useCallback(async () => {
+        // Só busca se estiver logado
+        if (!localStorage.getItem('authTokens')) return; 
+
+        try {
+            const response = await axiosInstance.get('/api/notifications/status/');
+            setUnreadAnnouncements(response.data.unread_announcements_count);
+            setUnreadSocial(response.data.unread_social_count);
+        } catch (error) {
+            console.error("Erro ao buscar status de notificações", error);
+        }
+    }, []); // Dependência vazia, já que axiosInstance é estável
 
     const loginUser = async (username, password) => {
         try {
@@ -33,13 +50,14 @@ export const AuthProvider = ({ children }) => {
             const decodedToken = jwtDecode(tokenData.access);
             const loggedInUsername = decodedToken.username;
 
-            // Busca os dados completos do perfil
             const userResponse = await axiosInstance.get(`/api/users/${loggedInUsername}/`);
             const fullUserData = userResponse.data;
             setUser(fullUserData);
             localStorage.setItem('userInfo', JSON.stringify(fullUserData));
 
-            // ATUALIZAÇÃO (Fase 1.2): Checa a flag de onboarding
+            // 4. Buscar status de notificação após o login
+            await fetchNotificationStatus();
+
             if (fullUserData.profile && !fullUserData.profile.onboarding_complete) {
                 setShowOnboardingModal(true);
             }
@@ -58,6 +76,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const registerUser = async (username, email, password) => {
+        // ... (lógica de registro existente)
         try {
             const response = await axiosInstance.post(`/api/register/`, {
                 username,
@@ -70,7 +89,6 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error("Erro no registro!", error);
-            // Adicionar feedback de erro mais específico (ex: usuário já existe)
             if (error.response && error.response.data.username) {
                  toast.error(`Erro no registro: ${error.response.data.username[0]}`);
             } else {
@@ -82,14 +100,17 @@ export const AuthProvider = ({ children }) => {
     const logoutUser = () => {
         setAuthTokens(null);
         setUser(null);
-        setShowOnboardingModal(false); // Garante que o modal feche ao sair
+        setShowOnboardingModal(false); 
+        // 5. Limpar contagens ao sair
+        setUnreadAnnouncements(0);
+        setUnreadSocial(0);
         localStorage.removeItem('authTokens');
         localStorage.removeItem('userInfo');
         navigate('/login');
         toast.success('Você saiu da sua conta.');
     };
 
-    // ATUALIZAÇÃO (Fase 1.2): Exporta os novos estados
+    // 6. Atualizar contextData
     const contextData = useMemo(() => ({
         user,
         setUser, 
@@ -98,16 +119,19 @@ export const AuthProvider = ({ children }) => {
         logoutUser,
         registerUser,
         showOnboardingModal,
-        setShowOnboardingModal
-    }), [user, authTokens, showOnboardingModal]);
+        setShowOnboardingModal,
+        // Novas props
+        unreadAnnouncements,
+        unreadSocial,
+        fetchNotificationStatus 
+    }), [user, authTokens, showOnboardingModal, unreadAnnouncements, unreadSocial, fetchNotificationStatus]); // 7. Adicionar dependências
 
-    // ATUALIZAÇÃO (Fase 1.2): useEffect agora checa o onboarding no load
+    // 8. useEffect de carregamento inicial
     useEffect(() => {
         const storedUserInfo = localStorage.getItem('userInfo');
         if (storedUserInfo) {
             const parsedUser = JSON.parse(storedUserInfo);
             setUser(parsedUser);
-            // Checa no carregamento da página também
             if (parsedUser.profile && !parsedUser.profile.onboarding_complete) {
                 setShowOnboardingModal(true);
             }
@@ -115,14 +139,15 @@ export const AuthProvider = ({ children }) => {
         const storedTokens = localStorage.getItem('authTokens');
          if (storedTokens) {
              setAuthTokens(JSON.parse(storedTokens));
+             // 9. Buscar status ao carregar o app (se já estiver logado)
+             fetchNotificationStatus(); 
          }
         
-        setLoading(false); // Finaliza o loading
-    }, []);
+        setLoading(false); 
+    }, [fetchNotificationStatus]); // 10. Adicionar fetchNotificationStatus como dependência
 
     return (
         <AuthContext.Provider value={contextData}>
-            {/* Mostra um loading global enquanto o contexto verifica o login */}
             {!loading ? children : (
                 <div className="flex justify-center items-center h-screen">
                     <span className="loading loading-spinner loading-lg"></span>
@@ -130,4 +155,4 @@ export const AuthProvider = ({ children }) => {
             )}
         </AuthContext.Provider>
     );
-};      
+};

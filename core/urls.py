@@ -44,6 +44,10 @@ from .views import (
     NotificationListView,
     MarkNotificationReadView,
     
+    # NOVOS IMPORTS
+    NotificationStatusView,
+    MarkAnnouncementReadView,
+    
     #admin
     AdminUserDetailView,
     AdminPostListView,
@@ -54,9 +58,6 @@ from .views import (
     BadgeListCreateAPIView,
     BadgeDetailAPIView
 )
-
-# A ordem dos paths está organizada por recurso e respeita
-# a regra de "específico antes de genérico"
 
 urlpatterns = [
 
@@ -70,9 +71,9 @@ urlpatterns = [
 
     # --- Usuário, Perfil e Busca ---
     path('api/register/', UserCreateAPIView.as_view(), name='user_register'),
-    path('api/users/search/', UserSearchView.as_view(), name='user-search'), # Específico
-    path('api/users/<str:username>/follow/', FollowUserView.as_view(), name='follow-user'), # Genérico
-    path('api/users/<str:username>/', UserDetailView.as_view(), name='user_detail'), # Genérico
+    path('api/users/search/', UserSearchView.as_view(), name='user-search'), 
+    path('api/users/<str:username>/follow/', FollowUserView.as_view(), name='follow-user'), 
+    path('api/users/<str:username>/', UserDetailView.as_view(), name='user_detail'), 
     path('api/user/update/', UserUpdateView.as_view(), name='user-update'),
     path('api/profile/', ProfileUpdateView.as_view(), name='profile-update'),
     path('api/profile/delete/', UserDeleteView.as_view(), name='user-delete'),
@@ -94,8 +95,8 @@ urlpatterns = [
     path('api/communities/<int:community_id>/join/', JoinCommunityView.as_view(), name='community-join'),
     path('api/communities/<int:community_id>/feed/', CommunityFeedView.as_view(), name='community-feed'),
     path('api/communities/<int:community_id>/post/', CommunityPostCreateView.as_view(), name='community-post-create'),
-    path('api/communities/members/<int:pk>/approve/', ApproveMemberView.as_view(), name='community-approve-member'), # 'pk' é o ID da Inscrição (Membership)
-    path('api/communities/members/<int:pk>/remove/', RemoveMemberView.as_view(), name='community-remove-member'), # 'pk' é o ID da Inscrição (Membership)
+    path('api/communities/members/<int:pk>/approve/', ApproveMemberView.as_view(), name='community-approve-member'), 
+    path('api/communities/members/<int:pk>/remove/', RemoveMemberView.as_view(), name='community-remove-member'), 
 
     # --- Anúncios (Professores) ---
     path('api/announcements/', AnnouncementListView.as_view(), name='announcement-list'),
@@ -105,12 +106,15 @@ urlpatterns = [
     path('api/notifications/', NotificationListView.as_view(), name='notification-list'),
     path('api/notifications/mark-read/', MarkNotificationReadView.as_view(), name='notification-mark-read'),
 
-    #admin
+    # --- NOVOS URLS (Para o ícone de sino e página de notificações) ---
+    path('api/notifications/status/', NotificationStatusView.as_view(), name='notification-status'),
+    path('api/announcements/mark-read/', MarkAnnouncementReadView.as_view(), name='announcement-mark-read'), 
+
+    # --- ADMIN PAINEL ---
     path('api/admin/users/', AdminUserListView.as_view(), name='admin-user-list'),
     path('api/admin/users/<int:id>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
     path('api/admin/posts/', AdminPostListView.as_view(), name='admin-post-list'),
     path('api/admin/badges/', BadgeListView.as_view(), name='admin-badge-list'),
     path('api/admin/badges/manage/', BadgeListCreateAPIView.as_view(), name='admin-badge-manage-list-create'),
     path('api/admin/badges/manage/<int:pk>/', BadgeDetailAPIView.as_view(), name='admin-badge-manage-detail'),
-
 ]
