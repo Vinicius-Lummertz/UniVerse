@@ -12,7 +12,11 @@ import ChatDetailPage from './pages/ChatDetailPage';
 import AdminRoute from './utils/AdminRoute';
 import AdminPage from './pages/AdminPage';
 import NotificationsPage from './pages/NotificationsPage'; 
-import PostDetailPage from './pages/PostDetailPage'; // 1. Importar a nova página
+import PostDetailPage from './pages/PostDetailPage'; 
+
+// --- 1. Importar Novas Páginas ---
+import CommunitiesPage from './pages/CommunitiesPage';
+import CommunityDetailPage from './pages/CommunityDetailPage';
 
 function App() {
   return (
@@ -26,9 +30,11 @@ function App() {
             <Route path="/chat" element={<ChatListPage />} />
             <Route path="/chat/:id" element={<ChatDetailPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            
-            {/* 2. ADICIONAR A NOVA ROTA DE POST */}
             <Route path="/posts/:id" element={<PostDetailPage />} />
+            
+            
+            <Route path="/communities" element={<CommunitiesPage />} />
+            <Route path="/communities/:id" element={<CommunityDetailPage />} />
             
             <Route element={<AdminRoute />} >
               <Route path='/admin' element={ <AdminPage /> } />

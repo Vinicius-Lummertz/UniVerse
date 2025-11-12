@@ -36,7 +36,24 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = ['name']
 
-# --- SERIALIZERS DE AUTENTICAÇÃO E PERFIL (User, Profile) ---
+
+class CommunitySmallSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Community
+        fields = ['id', 'name', 'community_image']
+
+class CommunityMembershipSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+    # community = serializers.ReadOnlyField(source='community.name') # Substituído
+    
+    # Aninha os dados básicos da comunidade
+    community = CommunitySmallSerializer(read_only=True) 
+    
+    class Meta:
+        model = CommunityMembership
+        # Adiciona 'is_admin'
+        fields = ['id', 'user', 'community', 'date_joined', 'status', 'is_admin']
+
 
 class ProfileSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField(read_only=True)
@@ -44,6 +61,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField(read_only=True)
     badges = BadgeSerializer(many=True, read_only=True) # Agora usará o BadgeSerializer atualizado
     is_admin = serializers.ReadOnlyField() # Esta propriedade agora lê 'profile.is_admin'
+    memberships = CommunityMembershipSerializer(many=True, read_only=True)
 
     class Meta:
         model = Profile
@@ -52,7 +70,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'followers_count', 'following_count', 'is_following',
             'universidade', 'curso', 'atletica', 'ano_inicio', 'onboarding_complete',
             'badges', 'saved_posts',
-            'is_admin' # 'is_admin' é essencial para o AdminRoute
+            'is_admin', 'memberships'
         ]
 
     def get_followers_count(self, obj):
@@ -200,20 +218,54 @@ class PostSerializer(serializers.ModelSerializer):
 class CommunitySerializer(serializers.ModelSerializer):
     admin = serializers.ReadOnlyField(source='admin.username')
     
+    # --- NOVOS CAMPOS (Fase 2) ---
+    membership_status = serializers.SerializerMethodField()
+    membership_id = serializers.SerializerMethodField()
+    
     class Meta:
         model = Community
         fields = [
             'id', 'name', 'description', 'privacy', 'related_course', 'admin',
-            'community_image', 'cover_image', 'created_at'
+            'community_image', 'cover_image', 'created_at',
+            'membership_status', 'membership_id' # --- Adicionados ao fields
         ]
 
-class CommunityMembershipSerializer(serializers.ModelSerializer):
-    user = serializers.ReadOnlyField(source='user.username')
-    community = serializers.ReadOnlyField(source='community.name')
-    
-    class Meta:
-        model = CommunityMembership
-        fields = ['id', 'user', 'community', 'date_joined', 'status']
+    def get_membership_status(self, obj):
+        """ Retorna o status do usuário logado: admin, member, pending, ou none """
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return "none"
+        
+        try:
+            # Busca a inscrição do usuário nesta comunidade
+            membership = CommunityMembership.objects.get(community=obj, user=request.user)
+            
+            # O Dono original (admin) ou um membro promovido (is_admin)
+            if obj.admin == request.user or membership.is_admin:
+                return "admin"
+            if membership.status == 'approved':
+                return "member"
+            if membership.status == 'pending':
+                return "pending"
+                
+        except CommunityMembership.DoesNotExist:
+            return "none"
+        
+        return "none"
+
+    def get_membership_id(self, obj):
+        """ Retorna o ID do membership do usuário (para Sair/Deletar) """
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        
+        try:
+            membership = CommunityMembership.objects.get(community=obj, user=request.user)
+            return membership.id
+        except CommunityMembership.DoesNotExist:
+            return None
+
+
 
 class AnnouncementSerializer(serializers.ModelSerializer):
     author = serializers.ReadOnlyField(source='author.username')

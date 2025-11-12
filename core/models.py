@@ -171,11 +171,15 @@ class CommunityMembership(models.Model):
     ]
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='approved')
     
+
+    is_admin = models.BooleanField(default=False)
+    
     class Meta:
         unique_together = ('user', 'community')
 
     def __str__(self):
-        return f'{self.user.username} - {self.community.name} ({self.status})'
+        role = "Admin" if self.is_admin else "Membro"
+        return f'{self.user.username} - {self.community.name} ({self.status} / {role})'
 
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')

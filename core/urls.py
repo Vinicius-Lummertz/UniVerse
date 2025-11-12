@@ -37,6 +37,8 @@ from .views import (
     CommunityFeedView,
     CommunityPostCreateView,
     FindCommunityByCourseView,
+    CommunityMemberListView,
+    PromoteCommunityAdminView,
 
     # Anúncios e Notificações
     AnnouncementListView,
@@ -91,13 +93,14 @@ urlpatterns = [
     path('api/communities/', CommunityListView.as_view(), name='community-list'),
     path('api/communities/create/', CommunityCreateView.as_view(), name='community-create'),
     path('api/communities/find-by-course/', FindCommunityByCourseView.as_view(), name='community-find-by-course'),
-    path('api/communities/<int:community_id>/', CommunityDetailView.as_view(), name='community-detail'),
+    path('api/communities/<int:community_id>/', CommunityDetailView.as_view(), name='community-detail'), # Renomeado de <int:pk>
     path('api/communities/<int:community_id>/join/', JoinCommunityView.as_view(), name='community-join'),
     path('api/communities/<int:community_id>/feed/', CommunityFeedView.as_view(), name='community-feed'),
     path('api/communities/<int:community_id>/post/', CommunityPostCreateView.as_view(), name='community-post-create'),
-    path('api/communities/members/<int:pk>/approve/', ApproveMemberView.as_view(), name='community-approve-member'), 
-    path('api/communities/members/<int:pk>/remove/', RemoveMemberView.as_view(), name='community-remove-member'), 
-
+    path('api/communities/<int:community_id>/members/', CommunityMemberListView.as_view(), name='community-member-list'),
+    path('api/communities/members/<int:pk>/approve/', ApproveMemberView.as_view(), name='community-approve-member'), # pk é o ID da Inscrição
+    path('api/communities/members/<int:pk>/remove/', RemoveMemberView.as_view(), name='community-remove-member'), # pk é o ID da Inscrição
+    path('api/communities/members/<int:pk>/promote/', PromoteCommunityAdminView.as_view(), name='community-promote-admin'), # pk é o ID da Inscrição
     # --- Anúncios (Professores) ---
     path('api/announcements/', AnnouncementListView.as_view(), name='announcement-list'),
     path('api/announcements/create/', AnnouncementCreateView.as_view(), name='announcement-create'),

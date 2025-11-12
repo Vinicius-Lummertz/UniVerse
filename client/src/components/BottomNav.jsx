@@ -1,6 +1,7 @@
 // src/components/BottomNav.jsx
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUser, FiMessageSquare, FiUsers } from 'react-icons/fi';
+// --- 1. Importar FiUsers ---
+import { FiHome, FiUser, FiMessageSquare, FiUsers, FiUsers as FiCommunity } from 'react-icons/fi';
 import AuthContext from '../context/AuthContext';
 import { useContext } from 'react';
 
@@ -29,6 +30,13 @@ const BottomNav = () => {
                     <FiUsers size={20} />
                     <span className="btm-nav-label">Seguindo</span>
                 </NavLink>
+
+                {/* --- 2. Adicionar Link de Comunidades --- */}
+                <NavLink to="/communities" className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
+                    <FiCommunity size={24} />
+                    <span className="text-xs">Comunidades</span>
+                </NavLink>
+
                 <NavLink to="/chat" className={({ isActive }) => `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
                     <FiMessageSquare size={24} />
                     <span className="text-xs">Chat</span>

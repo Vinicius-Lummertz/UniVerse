@@ -1,6 +1,6 @@
 import { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiEdit3, FiBookmark, FiMoreHorizontal } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit3, FiBookmark, FiMoreHorizontal, FiUsers } from 'react-icons/fi';
 import AuthContext from '../context/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
 import toast from 'react-hot-toast';
@@ -11,7 +11,7 @@ import CommentForm from './CommentForm';
 import CommentList from './CommentList';
 
 // O Feed agora recebe 'getPosts' como prop e não define mais seu próprio 'endpoint' ou 'getPosts'
-const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreateWhenEmpty = false }) => {
+const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreateWhenEmpty = false, communityId = null }) => {
     // 'user' e 'setUser' vêm do contexto para checagens de permissão e salvar posts
     // 'user' pode ser 'null' se o visitante não estiver logado
     const { user, setUser } = useContext(AuthContext); 
@@ -146,25 +146,28 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                         const isSaved = user?.profile?.saved_posts?.includes(post.pk);
 
                         return (
-                            // Card do Post (estrutura DaisyUI)
                             <div key={post.pk} className="card w-full max-w-2xl bg-base-100 shadow-xl overflow-hidden">
-                                
-
                                 <div className="card-body p-4 sm:p-6">
                                     <div className="flex justify-between items-start gap-2">
-                                        {/* Informações do Autor (com Badges) */}
+                                        
                                         <div className='flex items-center gap-3'>
                                             <div className="avatar">
                                                 <div className="w-10 rounded-full">
                                                     
-                                                    <img src={"pfp"} alt={post.owner} />
+                                                    <img src={post.owner_profile?.profile_pic || '/avatar-default.svg'} alt={post.owner} />
                                                 </div>
                                             </div> 
                                             <div className='flex flex-col'>
                                                 <Link to={`/profile/${post.owner}`} className="font-bold link link-hover text-lg leading-tight">
                                                     {post.owner}
                                                 </Link>
-                                                {/* Renderiza os Badges do autor */}
+                                                
+                                                {post.community && post.community_name && (
+                                                    <Link to={`/communities/${post.community}`} className="text-xs text-info link link-hover flex items-center gap-1">
+                                                        <FiUsers size={12} /> {post.community_name}
+                                                    </Link>
+                                                )}
+                                                
                                                 <div className='flex flex-wrap gap-1 mt-1'>
                                                     {post.owner_badges?.map(badge => (
                                                         <div key={badge.name} className={`badge badge-${badge.color || 'neutral'} badge-xs`}>
@@ -268,7 +271,7 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
             </main>
 
             {/* Botão Flutuante de Criar Post (SÓ SE ESTIVER LOGADO) */}
-            {user && (
+            {user && (communityId ? isMember : true) && (
                 <button
                     onClick={handleCreate}
                     className="fixed bottom-20 right-5 btn btn-primary btn-circle shadow-lg z-20">

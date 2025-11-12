@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.jsx
-import { useState, useEffect, useContext, useCallback } from 'react'; // Adicionado useCallback
+import { useState, useEffect, useContext, useCallback, Link } from 'react'; 
 import { useParams, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import BottomNav from '../components/BottomNav';
@@ -8,9 +8,10 @@ import EditProfileModal from '../components/EditProfileModal';
 import toast from 'react-hot-toast'; 
 import ConfirmationModal from '../components/ConfirmationModal';
 import axiosInstance from '../utils/axiosInstance';
-import Feed from '../components/Feed'; // 1. Importar o Feed
-import OnboardingModal from '../components/OnboardingModal'; // 2. Importar o OnboardingModal
+import Feed from '../components/Feed'; 
+import OnboardingModal from '../components/OnboardingModal'; 
 import Navbar from '../components/Navbar';
+import { FiUsers } from 'react-icons/fi'; 
 
 const ProfilePage = () => {
     const { username } = useParams();
@@ -166,9 +167,9 @@ const ProfilePage = () => {
         return <div className="text-center mt-10">Perfil não encontrado.</div>
     }
 
-    const { bio, profile_pic, followers_count, following_count } = profileData.profile || {};
+    const { bio, profile_pic, followers_count, following_count, memberships } = profileData.profile || {};
 
-    return (
+return (
         <>
             <div className="pb-20">
                 <Navbar />
@@ -222,23 +223,51 @@ const ProfilePage = () => {
                                             onClick={handleStartChat}
                                         >
                                             Mensagem
-                                        </button>                   
+                                        </button> 
                                     </>
                                 )}
+                            
                             </div>
                         </div>
                     </div>
 
-                    {/* 11. Substituir o loop de posts pelo componente Feed */}
+                    {/* --- INÍCIO DA SEÇÃO DE COMUNIDADES (Fase 5) --- */}
+                    {/* Esta seção só aparece se o usuário tiver comunidades */}
+                    {memberships && memberships.length > 0 && (
+                        <div className="card w-full max-w-2xl mx-auto bg-base-100 shadow-xl mb-6">
+                            <div className="card-body p-4 sm:p-6">
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <FiUsers />
+                                    Comunidades
+                                </h3>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {/* Mapeia os 'memberships' do perfil */}
+                                    {memberships.map(mem => (
+                                        <Link to={`/communities/${mem.community.id}`} key={mem.id} className="avatar-group -space-x-6 hover:space-x-0 transition-all" title={mem.community.name}>
+                                            <div className="avatar border-2 border-base-100">
+                                                <div className="w-12">
+                                                    <img src={mem.community.community_image || '/avatar-default.svg'} alt={mem.community.name} />
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {/* --- FIM DA SEÇÃO DE COMUNIDADES --- */}
+
+
+                    {/* Seção de Posts */}
                     <div className="flex flex-col items-center gap-6">
                         <h3 className="text-xl font-bold self-start max-w-2xl mx-auto w-full">Posts de {profileData.username}</h3>
                         <Feed
                             posts={posts}
                             setPosts={setPosts}
                             loading={loadingPosts}
-                            getPosts={fetchPosts} // Passa a função de recarregar posts
+                            getPosts={fetchPosts} 
                             emptyFeedMessage="Este usuário ainda não fez nenhum post."
-                            showCreateWhenEmpty={false} // Não mostrar botão de criar no perfil
+                            showCreateWhenEmpty={false}
                         />
                     </div>
                 </main>
@@ -257,7 +286,7 @@ const ProfilePage = () => {
                     isOpen={isEditProfileOpen} 
                     onClose={() => setIsEditProfileOpen(false)}
                     profile={profileData.profile}
-                    onUpdate={handleProfileUpdate} // 12. Usar a nova prop 'onUpdate'
+                    onUpdate={handleProfileUpdate} 
                     onOpenDeleteConfirm={() => {
                         setIsEditProfileOpen(false); 
                         setIsDeleteAccountOpen(true); 
@@ -273,7 +302,6 @@ const ProfilePage = () => {
                 message="Você tem certeza? Esta ação não pode ser desfeita. Todos os seus posts, seguidores e dados de perfil serão apagados para sempre."
             />
 
-            {/* 13. Renderizar o OnboardingModal */}
             {isOwnProfile && showOnboardingModal && <OnboardingModal />}
         </>
     );

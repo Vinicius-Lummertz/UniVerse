@@ -18,10 +18,10 @@ from .serializers import (
     UserSearchSerializer, CommentSerializer, ReactionSerializer, 
     ConversationSerializer, MessageSerializer, UserUpdateSerializer,
     CommunitySerializer, CommunityMembershipSerializer, AnnouncementSerializer,
-    TagSerializer, NotificationSerializer, AdminUserSerializer, BadgeSerializer, 
+    TagSerializer, NotificationSerializer, AdminUserSerializer, BadgeSerializer,  
 )
 # Importação de todas as permissões
-from .permissions import IsOwnerOrReadOnly, IsCommunityAdmin, IsAdminUser
+from .permissions import IsOwnerOrReadOnly, IsCommunityAdmin, IsCommunityOwner, IsAdminUser
 
 # ==============================================================================
 # VIEWS DE POSTS E INTERAÇÕES (Existentes)
@@ -231,12 +231,33 @@ class HashtagPostListView(generics.ListAPIView):
 # ==============================================================================
 
 class CommunityCreateView(generics.CreateAPIView):
+    """
+    Cria uma nova comunidade.
+    Limitado a 1 por usuário (a menos que seja staff).
+    """
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    # --- LÓGICA ATUALIZADA (Fase 1) ---
     def perform_create(self, serializer):
-        serializer.save(admin=self.request.user)
+        user = self.request.user
+        
+        # 1. Verifica o limite de 1 comunidade (regra de negócio)
+        if not user.is_staff:
+            if Community.objects.filter(admin=user).exists():
+                raise serializers.ValidationError("Você já atingiu o limite de 1 comunidade. Exclua sua comunidade existente para criar uma nova.")
+        
+        # 2. Salva a comunidade
+        community = serializer.save(admin=user)
+        
+        # 3. Cria automaticamente o membership para o dono (regra de negócio)
+        CommunityMembership.objects.create(
+            user=user,
+            community=community,
+            status='approved',
+            is_admin=True # O criador é o primeiro admin
+        )
 
 
 class CommunityListView(generics.ListAPIView):
@@ -246,9 +267,19 @@ class CommunityListView(generics.ListAPIView):
 
 
 class CommunityDetailView(generics.RetrieveAPIView):
+    """
+    Vê os detalhes de uma comunidade.
+    """
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
     permission_classes = [permissions.AllowAny]
+    
+    # Diz à view para usar o argumento 'community_id' da URL, em vez do padrão 'pk'
+    lookup_url_kwarg = 'community_id'
+
+    # Adiciona o 'request' ao contexto para o SerializerMethodField funcionar
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 
 class JoinCommunityView(APIView):
@@ -270,10 +301,15 @@ class JoinCommunityView(APIView):
 
 
 class ApproveMemberView(APIView):
+    """
+    (Admin da Comunidade) Aprova uma solicitação pendente.
+    """
+    # --- Permissão Atualizada (Fase 4) ---
     permission_classes = [permissions.IsAuthenticated, IsCommunityAdmin]
 
     def post(self, request, membership_id):
         membership = get_object_or_404(CommunityMembership, id=membership_id)
+        # Checa se o request.user é admin da community do membership
         self.check_object_permission(request, membership) 
         
         if membership.status == 'pending':
@@ -284,10 +320,56 @@ class ApproveMemberView(APIView):
 
 
 class RemoveMemberView(generics.DestroyAPIView):
+    """
+    (Admin da Comunidade OU o próprio usuário) Remove um membro ou sai.
+    """
     queryset = CommunityMembership.objects.all()
     serializer_class = CommunityMembershipSerializer
-    permission_classes = [permissions.IsAuthenticated, IsCommunityAdmin] 
+    # --- Permissão Atualizada (Fase 4) ---
+    # Usamos IsCommunityAdmin (que checa se é dono OU admin promovido)
+    permission_classes = [permissions.IsAuthenticated]
 
+    # --- Lógica de Permissão Atualizada (Fase 4) ---
+    def check_object_permission(self, request, obj):
+        # Permite se: 
+        # 1. Você é o próprio usuário (saindo da comunidade)
+        if obj.user == request.user:
+            # 1a. Não pode sair se for o DONO original (deve deletar a comunidade)
+            if obj.community.admin == request.user:
+                raise serializers.ValidationError("Você é o Dono da comunidade. Você não pode sair, apenas excluir a comunidade.")
+            return True # É um membro normal saindo
+
+        # 2. Você é um Admin (Dono OU is_admin=True)
+        # Usamos o check do IsCommunityAdmin
+        is_admin_check = IsCommunityAdmin()
+        if is_admin_check.has_object_permission(request, self, obj):
+            # 2a. Admins não podem remover o Dono original
+            if obj.community.admin == obj.user:
+                 raise serializers.ValidationError("Administradores não podem remover o Dono da comunidade.")
+            return True
+        
+        # Se não for nenhum dos casos acima, nega
+        self.permission_denied(request)
+
+class CommunityMemberListView(generics.ListAPIView):
+    """
+    Lista todos os membros (e pendentes) de uma comunidade específica.
+    Protegido por: IsAuthenticated (qualquer membro pode ver quem está)
+    """
+    serializer_class = CommunityMembershipSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        community_id = self.kwargs['community_id']
+        # Garante que o usuário é membro aprovado para ver a lista
+        if not CommunityMembership.objects.filter(
+            community_id=community_id, 
+            user=self.request.user, 
+            status='approved'
+        ).exists():
+            raise serializers.ValidationError("Você deve ser membro para ver a lista de participantes.")
+            
+        return CommunityMembership.objects.filter(community_id=community_id).order_by('status', 'user__username')
 
 class CommunityFeedView(generics.ListAPIView):
     serializer_class = PostSerializer
@@ -329,6 +411,28 @@ class FindCommunityByCourseView(generics.ListAPIView):
         if course:
             return Community.objects.filter(related_course__icontains=course)
         return Community.objects.none()
+
+class PromoteCommunityAdminView(APIView):
+    """
+    (Dono da Comunidade) Promove ou Rebaixa um membro para Admin.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsCommunityOwner] # Apenas o Dono
+
+    def post(self, request, pk): # pk é o ID do Membership
+        membership = get_object_or_404(CommunityMembership, pk=pk)
+        
+        # Checa se o request.user é o DONO da comunidade
+        self.check_object_permission(request, membership) 
+        
+        # Não pode alterar o status do Dono
+        if membership.user == membership.community.admin:
+            return Response({"error": "Não é possível alterar o status de Dono."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Alterna o status de admin
+        membership.is_admin = not membership.is_admin
+        membership.save()
+        
+        return Response(CommunityMembershipSerializer(membership).data, status=status.HTTP_200_OK)
 
 # ==============================================================================
 # VIEWS DE ANÚNCIOS E NOTIFICAÇÕES (ATUALIZADAS)
