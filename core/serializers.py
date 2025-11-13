@@ -40,7 +40,7 @@ class TagSerializer(serializers.ModelSerializer):
 class CommunitySmallSerializer(serializers.ModelSerializer):
     class Meta:
         model = Community
-        fields = ['id', 'name', 'community_image']
+        fields = ['id', 'name', 'community_image', 'admin']
 
 class CommunityMembershipSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')

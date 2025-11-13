@@ -1,3 +1,4 @@
+// src/components/Feed.jsx
 import { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiEdit3, FiBookmark, FiMoreHorizontal, FiUsers } from 'react-icons/fi';
@@ -10,18 +11,15 @@ import Reactions from './Reactions';
 import CommentForm from './CommentForm';
 import CommentList from './CommentList';
 
-// O Feed agora recebe 'getPosts' como prop e não define mais seu próprio 'endpoint' ou 'getPosts'
-const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreateWhenEmpty = false, communityId = null }) => {
-    // 'user' e 'setUser' vêm do contexto para checagens de permissão e salvar posts
-    // 'user' pode ser 'null' se o visitante não estiver logado
+// --- CORREÇÃO 1: Adicionado 'isMember' nas props (default true para feed global) ---
+const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreateWhenEmpty = false, communityId = null, isMember = true }) => {
+    
     const { user, setUser } = useContext(AuthContext); 
     
-    // Os estados dos modais vivem dentro do Feed
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPost, setEditingPost] = useState(null);
     const [postToDelete, setPostToDelete] = useState(null);
 
-    // Funções de controle dos modais
     const handleEdit = (post) => {
         setEditingPost(post);
         setIsModalOpen(true);
@@ -45,48 +43,33 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
         setPostToDelete(null);
     };
 
-    // Função de deletar (agora usa 'setPosts' da prop)
     const confirmDelete = async () => {
         if (!postToDelete) return;
-
         const promise = axiosInstance.delete(`/api/posts/${postToDelete}/`);
+        
         toast.promise(promise, {
             loading: 'Excluindo post...',
             success: 'Post excluído com sucesso!',
-            error: 'Não foi possível excluir o post.'
-        });
-
-        promise.then(() => {
-            // Atualiza o estado da PÁGINA PAI
-            setPosts(posts.filter(p => p.pk !== postToDelete));
-            closeDeleteModal();
-        }).catch(err => {
-            console.error(err);
-            closeDeleteModal();
-        });
-    };
-    
-    // Função de Salvar Post (usa 'user' e 'setUser' do contexto)
-    const handleSavePost = async (postPk, isCurrentlySaved) => {
-        if (!user) {
-            toast.error("Você precisa estar logado para salvar posts.");
-            return;
-        }
-
-        const promise = axiosInstance.post(`/api/posts/${postPk}/save/`);
-        toast.promise(promise, {
-            loading: 'Salvando...',
-            success: isCurrentlySaved ? 'Post removido dos salvos!' : 'Post salvo!',
-            error: 'Não foi possível salvar.'
+            error: 'Erro ao excluir post.'
         });
 
         try {
             await promise;
-            // Atualiza o estado do 'user' no AuthContext para refletir a mudança
+            setPosts(posts.filter(post => post.pk !== postToDelete));
+            closeDeleteModal();
+        } catch (error) {
+            console.error("Erro ao excluir:", error);
+        }
+    };
+
+    const handleSavePost = async (postPk, isCurrentlySaved) => {
+        try {
+            const response = await axiosInstance.post(`/api/posts/${postPk}/save/`);
+            
             const updatedSavedPosts = isCurrentlySaved
                 ? user.profile.saved_posts.filter(id => id !== postPk)
                 : [...user.profile.saved_posts, postPk];
-
+            
             const updatedUser = {
                 ...user,
                 profile: {
@@ -94,20 +77,21 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                     saved_posts: updatedSavedPosts
                 }
             };
+
+            setUser(updatedUser);
+            localStorage.setItem('userInfo', JSON.stringify(updatedUser));
             
-            setUser(updatedUser); // Atualiza o contexto
-            localStorage.setItem('userInfo', JSON.stringify(updatedUser)); // Atualiza o storage
-            
+            toast.success(response.data.status === 'adicionado aos salvos' ? 'Post salvo!' : 'Post removido dos salvos.');
+
         } catch (error) {
             console.error("Erro ao salvar post:", error);
+            toast.error("Erro ao salvar post.");
         }
     };
 
 
-    // Exibição de Loading
     if (loading) {
         return (
-            // Calcula altura para não ficar sob a navbar/bottomnav
             <div className="flex justify-center items-center h-[calc(100vh-10rem)]"> 
                 <span className="loading loading-spinner loading-lg"></span>
             </div>
@@ -116,19 +100,15 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
 
     return (
         <>
-            {/* O padding para o BottomNav agora está aqui */}
             <main className="container mx-auto p-4 pb-20">
                 <div className="flex flex-col items-center gap-6">
                     
-                    {/* Mensagem se o feed estiver vazio */}
                     {!loading && posts.length === 0 && (
                         <div className="card w-full max-w-2xl bg-base-100 shadow-xl">
                             <div className="card-body items-center text-center">
                                 <h2 className="card-title">Que silêncio...</h2>
-                                {/* 2. Usa a prop da mensagem customizada */}
                                 <p>{emptyFeedMessage || "Não há nenhum post para mostrar aqui ainda."}</p>
                                 
-                                {/* 3. Usa a prop booleana para mostrar o botão */}
                                 {user && showCreateWhenEmpty && (
                                     <div className="card-actions mt-4">
                                         <button className="btn btn-primary" onClick={handleCreate}>
@@ -140,10 +120,13 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                         </div>
                     )}
 
-                    {/* Loop dos Posts */}
                     {posts.map(post => {
-                        // Verifica se o usuário logado salvou este post
                         const isSaved = user?.profile?.saved_posts?.includes(post.pk);
+
+                        // --- CORREÇÃO 2: Fallback de Avatar Aprimorado ---
+                        const avatarSrc = post.owner_profile?.profile_pic
+                            || (user && user.username === post.owner ? user.profile?.profile_pic : null)
+                            || '/avatar-default.svg';
 
                         return (
                             <div key={post.pk} className="card w-full max-w-2xl bg-base-100 shadow-xl overflow-hidden">
@@ -153,8 +136,8 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                         <div className='flex items-center gap-3'>
                                             <div className="avatar">
                                                 <div className="w-10 rounded-full">
-                                                    
-                                                    <img src={post.owner_profile?.profile_pic || '/avatar-default.svg'} alt={post.owner} />
+                                                    {/* Usa a variável avatarSrc calculada acima */}
+                                                    <img src={avatarSrc} alt={post.owner} />
                                                 </div>
                                             </div> 
                                             <div className='flex flex-col'>
@@ -178,8 +161,8 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                             </div>
                                         </div>
 
-                                        {/* Dropdown de Editar/Excluir (SÓ SE FOR DONO ou STAFF) */}
-                                        {user && (user.username === post.owner || user.profile?.is_staff) && (
+                                        {/* Dropdown de Editar/Excluir */}
+                                        {user && (user.username === post.owner || user.profile?.is_admin) && (
                                             <div className="dropdown dropdown-end">
                                                 <button tabIndex={0} role="button" className="btn btn-ghost btn-sm btn-circle">
                                                     <FiMoreHorizontal size={18} />
@@ -188,16 +171,14 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                                     {user.username === post.owner && (
                                                         <li><button onClick={() => handleEdit(post)} className='w-full text-left'> <FiEdit3 className='mr-2'/> Editar</button></li>
                                                     )}
-                                                    {/* Admins e o dono podem excluir */}
-                                                    <li><button onClick={() => openDeleteModal(post.pk)} className='w-full text-left text-error'> <FiTrash2 className='mr-2'/> Excluir{user.profile?.is_staff && " (Admin)"}</button></li>
+                                                    <li><button onClick={() => openDeleteModal(post.pk)} className='w-full text-left text-error'> <FiTrash2 className='mr-2'/> Excluir{user.profile?.is_admin && " (Admin)"}</button></li>
                                                 </ul>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Conteúdo do Post */}
                                     <h2 className="card-title mt-2">{post.title}</h2>
-                                    <p className="mt-1 whitespace-pre-wrap">{post.content}</p> {/* whitespace-pre-wrap respeita quebras de linha */}
+                                    <p className="mt-1 whitespace-pre-wrap">{post.content}</p>
                                     {post.image && (
                                         <figure><img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-center object-cover" /></figure>
                                     )}
@@ -216,9 +197,7 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                         {new Date(post.createdAt).toLocaleString('pt-BR')}
                                     </small>
 
-                                    {/* Ações (Reações e Salvar) */}
                                     <div className="card-actions justify-between items-center mt-4">
-                                        {/* Lógica condicional para Reações */}
                                         {user ? (
                                             <Reactions
                                                 postId={post.pk}
@@ -231,7 +210,6 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                             </div>
                                         )}
                                         
-                                        {/* Botão Salvar (SÓ SE ESTIVER LOGADO) */}
                                         {user && (
                                             <button onClick={() => handleSavePost(post.pk, isSaved)} className="btn btn-ghost btn-sm">
                                                 <FiBookmark size={18} className={isSaved ? 'fill-primary text-primary' : ''} />
@@ -242,14 +220,12 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                     
                                     <div className="divider my-1"></div>
 
-                                    {/* Comentários */}
                                     <CommentList comments={post.comments} />
                                     
                                     {user ? (
                                         <CommentForm
                                             postId={post.pk}
                                             onCommentAdded={(newComment) => {
-                                                // Atualiza o estado local para o novo comentário aparecer
                                                 setPosts(currentPosts => currentPosts.map(p =>
                                                     p.pk === post.pk
                                                         ? { ...p, comments: [...p.comments, newComment] }
@@ -258,7 +234,6 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                             }}
                                         />
                                     ) : (
-                                        // **CORRIGIDO: Removido 'Especialista em TI' e tag quebrada**
                                         <div className="mt-4 p-3 rounded-lg bg-base-200 text-sm text-center">
                                             <Link to="/login" className="link link-primary font-semibold">Faça login</Link> para deixar um comentário.
                                         </div>
@@ -270,7 +245,7 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                 </div>
             </main>
 
-            {/* Botão Flutuante de Criar Post (SÓ SE ESTIVER LOGADO) */}
+            {/* Botão Flutuante: Agora usa a prop 'isMember' corretamente */}
             {user && (communityId ? isMember : true) && (
                 <button
                     onClick={handleCreate}
@@ -279,14 +254,14 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                 </button>
             )}
 
-            {/* Modais (só renderizam se 'user' existir) */}
             {user && (
                 <>
                     <CreatePostModal
                         isOpen={isModalOpen}
                         onClose={handleCloseModal}
-                        onPostCreated={getPosts} // 3. Usa o 'getPosts' recebido por prop
+                        onPostCreated={getPosts} 
                         postToEdit={editingPost}
+                        communityId={communityId}
                     />
                     <ConfirmationModal
                         isOpen={!!postToDelete}

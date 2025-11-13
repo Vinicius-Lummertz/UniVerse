@@ -18,9 +18,8 @@ const CommunitiesPage = () => {
     const { user, fetchNotificationStatus } = useContext(AuthContext); // Pega o usuário para checar permissão
 
     // Verifica se o usuário pode criar (é staff ou não atingiu o limite)
-    const canCreateCommunity = user.is_staff || !user.profile.memberships.some(mem => mem.community.admin === user.username);
+    const canCreateCommunity = user?.is_staff || !(user?.profile?.memberships || []).some(mem => mem.community?.admin === user.username);
 
-    // Busca as comunidades
     const fetchCommunities = useCallback(async () => {
         setLoading(true);
         try {

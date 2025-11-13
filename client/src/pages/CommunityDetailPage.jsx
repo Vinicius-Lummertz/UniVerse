@@ -192,8 +192,9 @@ const CommunityDetailPage = () => {
                                             getPosts={fetchData} // Recarrega tudo
                                             emptyFeedMessage="Esta comunidade ainda não tem posts."
                                             showCreateWhenEmpty={true}
-                                            communityId={communityId} // << Passa o ID para o CreatePostModal
-                                        />
+                                            communityId={communityId}
+                                            isMember={isMember}
+                                            />
                                     )}
                                 </>
                             )}

@@ -304,13 +304,14 @@ class ApproveMemberView(APIView):
     """
     (Admin da Comunidade) Aprova uma solicitação pendente.
     """
-    # --- Permissão Atualizada (Fase 4) ---
     permission_classes = [permissions.IsAuthenticated, IsCommunityAdmin]
 
-    def post(self, request, membership_id):
-        membership = get_object_or_404(CommunityMembership, id=membership_id)
+    # --- CORREÇÃO: Alterado de 'membership_id' para 'pk' para bater com a URL ---
+    def post(self, request, pk): 
+        membership = get_object_or_404(CommunityMembership, id=pk)
+        
         # Checa se o request.user é admin da community do membership
-        self.check_object_permission(request, membership) 
+        self.check_object_permissions(request, membership) 
         
         if membership.status == 'pending':
             membership.status = 'approved'
