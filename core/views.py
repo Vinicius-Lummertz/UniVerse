@@ -685,3 +685,15 @@ class BadgeDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Badge.objects.all()
     serializer_class = BadgeSerializer
     permission_classes = [IsAdminUser]
+
+
+class StatusCheckView(APIView):
+    """
+    Endpoint super leve usado pelo frontend para 'acordar' o servidor
+    do Render (contornando o cold start) e verificar se está online.
+    Não usa banco de dados nem autenticação.
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request, format=None):
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)

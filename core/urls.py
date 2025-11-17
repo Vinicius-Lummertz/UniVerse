@@ -58,10 +58,16 @@ from .views import (
     #badge
     BadgeListView,
     BadgeListCreateAPIView,
-    BadgeDetailAPIView
+    BadgeDetailAPIView,
+
+    #servidor
+    StatusCheckView
 )
 
 urlpatterns = [
+
+    #Health Check
+    path('api/status/', StatusCheckView.as_view(), name='status-check'),
 
     # --- Posts, Comentários, Reações ---
     path('api/posts/', PostListAPIView.as_view(), name='posts_list_api'),
