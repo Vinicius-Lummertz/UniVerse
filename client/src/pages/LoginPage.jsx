@@ -46,7 +46,7 @@ return (
                 </div>
 
                 <p className="text-center text-gray-300 mt-6">
-                    Não tem uma conta? <Link to="/register" className="text-green-400 hover:underline">Crie uma aqui</Link>
+                    Não tem uma conta? <Link to="/register" className="text-purple-700 hover:underline">Crie uma aqui</Link>
                 </p>
             </form>
         </div>

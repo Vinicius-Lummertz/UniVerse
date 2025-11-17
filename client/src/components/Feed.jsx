@@ -1,6 +1,6 @@
 // src/components/Feed.jsx
 import { useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiEdit3, FiBookmark, FiMoreHorizontal, FiUsers } from 'react-icons/fi';
 import AuthContext from '../context/AuthContext';
 import axiosInstance from '../utils/axiosInstance';
@@ -11,10 +11,10 @@ import Reactions from './Reactions';
 import CommentForm from './CommentForm';
 import CommentList from './CommentList';
 
-// --- CORREÇÃO 1: Adicionado 'isMember' nas props (default true para feed global) ---
 const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreateWhenEmpty = false, communityId = null, isMember = true }) => {
     
     const { user, setUser } = useContext(AuthContext); 
+    const navigate = useNavigate();
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPost, setEditingPost] = useState(null);
@@ -89,6 +89,15 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
         }
     };
 
+    // Handler para links que exigem login (dentro do feed)
+    const handleLinkClick = (e, message, path) => {
+        if (!user) {
+            e.preventDefault();
+            toast.error(message);
+            navigate(path || '/login');
+        }
+    };
+
 
     if (loading) {
         return (
@@ -123,7 +132,6 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                     {posts.map(post => {
                         const isSaved = user?.profile?.saved_posts?.includes(post.pk);
 
-                        // --- CORREÇÃO 2: Fallback de Avatar Aprimorado ---
                         const avatarSrc = post.owner_profile?.profile_pic
                             || (user && user.username === post.owner ? user.profile?.profile_pic : null)
                             || '/avatar-default.svg';
@@ -136,17 +144,24 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                         <div className='flex items-center gap-3'>
                                             <div className="avatar">
                                                 <div className="w-10 rounded-full">
-                                                    {/* Usa a variável avatarSrc calculada acima */}
                                                     <img src={avatarSrc} alt={post.owner} />
                                                 </div>
                                             </div> 
                                             <div className='flex flex-col'>
-                                                <Link to={`/profile/${post.owner}`} className="font-bold link link-hover text-lg leading-tight">
+                                                <Link
+                                                    to={`/profile/${post.owner}`}
+                                                    className="font-bold link link-hover text-lg leading-tight"
+                                                    onClick={(e) => handleLinkClick(e, 'Faça login para ver perfis.')}
+                                                >
                                                     {post.owner}
                                                 </Link>
                                                 
                                                 {post.community && post.community_name && (
-                                                    <Link to={`/communities/${post.community}`} className="text-xs text-info link link-hover flex items-center gap-1">
+                                                    <Link
+                                                        to={`/communities/${post.community}`}
+                                                        className="text-xs text-info link link-hover flex items-center gap-1"
+                                                        onClick={(e) => handleLinkClick(e, 'Faça login para ver comunidades.')}
+                                                    >
                                                         <FiUsers size={12} /> {post.community_name}
                                                     </Link>
                                                 )}
@@ -161,7 +176,6 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                                             </div>
                                         </div>
 
-                                        {/* Dropdown de Editar/Excluir */}
                                         {user && (user.username === post.owner || user.profile?.is_admin) && (
                                             <div className="dropdown dropdown-end">
                                                 <button tabIndex={0} role="button" className="btn btn-ghost btn-sm btn-circle">
@@ -245,7 +259,6 @@ const Feed = ({ posts, setPosts, loading, getPosts, emptyFeedMessage, showCreate
                 </div>
             </main>
 
-            {/* Botão Flutuante: Agora usa a prop 'isMember' corretamente */}
             {user && (communityId ? isMember : true) && (
                 <button
                     onClick={handleCreate}
