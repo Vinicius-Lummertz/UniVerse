@@ -3,7 +3,7 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
 // Use a variável de ambiente ou o valor padrão
-const API_URL = import.meta.env.VITE_API_URL || 'http://192.168.15.164:8000';
+const API_URL = import.meta.env.RENDER_API_URL || 'http://192.168.15.164:8000';
 
 const axiosInstance = axios.create({
     baseURL: API_URL,

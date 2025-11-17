@@ -39,7 +39,7 @@ const ChatDetailPage = () => {
     // --- Configuração do WebSocket ---
     const getWebSocketUrl = () => {
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const host = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).host : 'localhost:8000';
+        const host = import.meta.env.RENDER_API_URL ? new URL(import.meta.env.RENDER_API_URL).host : 'localhost:8000';
         const currentTokens = JSON.parse(localStorage.getItem('authTokens'));
         const accessToken = currentTokens ? currentTokens.access : null;
         
