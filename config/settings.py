@@ -28,7 +28,7 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 
 # Application definition
@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'firebase_storage',
+    'storages',
     'core',
     'rest_framework',
     'corsheaders',
@@ -139,9 +139,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Firebase / Google Cloud Storage Config
 FIREBASE_STORAGE_BUCKET = os.environ.get('FIREBASE_STORAGE_BUCKET')
-DEFAULT_FILE_STORAGE = 'firebase_storage.storage.FirebaseStorage'
-FIREBASE_SERVICE_ACCOUNT_KEY_B64 = os.environ.get(' ')
+FIREBASE_SERVICE_ACCOUNT_KEY_B64 = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY_B64')
+
 if FIREBASE_SERVICE_ACCOUNT_KEY_B64:
     try:
         # Decodifica a string Base64 de volta para o JSON original
@@ -151,16 +156,15 @@ if FIREBASE_SERVICE_ACCOUNT_KEY_B64:
         print(f"Erro ao carregar chave do Firebase: {e}")
         FIREBASE_SERVICE_ACCOUNT_KEY = None
 else:
-    # Fallback para desenvolvimento local (se tiver o arquivo json na pasta raiz)
-    # Coloque o caminho do seu arquivo aqui se quiser testar localmente sem var de ambiente
+    # Fallback para desenvolvimento local
     FIREBASE_SERVICE_ACCOUNT_KEY = os.path.join(BASE_DIR, 'serviceAccountKey.json')
 
+# Configuração do django-storages (Google Cloud Storage)
+DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+GS_BUCKET_NAME = FIREBASE_STORAGE_BUCKET
+GS_CREDENTIALS = FIREBASE_SERVICE_ACCOUNT_KEY
 
-# Configuração de Arquivos Estáticos (CSS/JS do Admin)
-# (Estes continuam no WhiteNoise, pois são pequenos e parte do build)
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
