@@ -11,8 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-import os
 import dj_database_url
+import base64,json,os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-sua-chave-local')
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'firebase_storage',
     'core',
     'rest_framework',
     'corsheaders',
@@ -138,6 +139,25 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+FIREBASE_STORAGE_BUCKET = os.environ.get('FIREBASE_STORAGE_BUCKET')
+DEFAULT_FILE_STORAGE = 'firebase_storage.storage.FirebaseStorage'
+FIREBASE_SERVICE_ACCOUNT_KEY_B64 = os.environ.get(' ')
+if FIREBASE_SERVICE_ACCOUNT_KEY_B64:
+    try:
+        # Decodifica a string Base64 de volta para o JSON original
+        decoded_key = base64.b64decode(FIREBASE_SERVICE_ACCOUNT_KEY_B64).decode('utf-8')
+        FIREBASE_SERVICE_ACCOUNT_KEY = json.loads(decoded_key)
+    except Exception as e:
+        print(f"Erro ao carregar chave do Firebase: {e}")
+        FIREBASE_SERVICE_ACCOUNT_KEY = None
+else:
+    # Fallback para desenvolvimento local (se tiver o arquivo json na pasta raiz)
+    # Coloque o caminho do seu arquivo aqui se quiser testar localmente sem var de ambiente
+    FIREBASE_SERVICE_ACCOUNT_KEY = os.path.join(BASE_DIR, 'serviceAccountKey.json')
+
+
+# Configuração de Arquivos Estáticos (CSS/JS do Admin)
+# (Estes continuam no WhiteNoise, pois são pequenos e parte do build)
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

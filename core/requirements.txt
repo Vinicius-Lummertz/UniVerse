@@ -8,3 +8,4 @@ gunicorn               # O servidor WSGI que o Render irá correr
 psycopg2-binary        # O "driver" para conectar o Django ao PostgreSQL
 dj-database-url        # Para ler a URL do banco a partir de variáveis de ambiente
 whitenoise             # Para servir ficheiros estáticos (CSS/JS do Admin)
+django-firebase-storage
