@@ -10,3 +10,4 @@ dj-database-url        # Para ler a URL do banco a partir de variáveis de ambie
 whitenoise             # Para servir ficheiros estáticos (CSS/JS do Admin)
 django-storages
 google-cloud-storage
+google-auth
