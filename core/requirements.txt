@@ -11,3 +11,4 @@ whitenoise             # Para servir ficheiros estáticos (CSS/JS do Admin)
 django-storages
 google-cloud-storage
 google-auth
+python-dotenv

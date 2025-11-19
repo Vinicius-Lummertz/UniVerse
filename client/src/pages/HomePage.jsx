@@ -18,7 +18,7 @@ const HomePage = () => {
         setLoading(true);
         try {
             const response = await axiosInstance.get('/api/posts/');
-            setPosts(response.data);
+            setPosts(Array.isArray(data) ? data : (data.results || []));
         } catch (error) {
             if (error.response?.status !== 401) {
                 toast.error("Não foi possível carregar os posts.");
