@@ -1,101 +1,112 @@
-. Visão Geral do Projeto "UniVerse"
-O UniVerse é uma rede social completa, similar ao Twitter ou Instagram, mas com um forte nicho em ambientes universitários. O projeto é um monorepo que contém:
+# UniVerse 🚀
+> **The Social Network for University Life.**
 
-client/: Uma aplicação Frontend moderna em React (Vite + TailwindCSS).
+![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
+![Django](https://img.shields.io/badge/Django-5.0-green?style=for-the-badge&logo=django)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)
+![Vite](https://img.shields.io/badge/Vite-6.0-646CFF?style=for-the-badge&logo=vite)
+![Status](https://img.shields.io/badge/Status-In%20Development-yellow?style=for-the-badge)
 
-core/: Uma API Backend robusta em Django (DRF + Channels).
+**UniVerse** is a specialized social platform designed to connect students, professors, and university communities. Unlike generic social media, UniVerse focuses on the academic ecosystem, facilitating communication through course-specific communities, real-time messaging, and a student-centric feed.
 
-db.sqlite3: O banco de dados de desenvolvimento atual, populado com dados de teste.
+---
 
-media/: Diretório de arquivos de upload do usuário (fotos de perfil, imagens de posts).
+## ✨ Key Features
 
-O objetivo é criar uma plataforma onde estudantes possam interagir, seguir uns aos outros, criar posts em um feed global, participar de comunidades (privadas ou públicas) ligadas a seus cursos e receber anúncios de professores.
+- **🌐 Global & Community Feeds**: Share updates with the entire campus or post privately within your course community.
+- **💬 Real-Time Chat**: Direct messaging powered by WebSockets (Django Channels) for instant collaboration.
+- **👥 Communities (Groups)**: Join private or public communities based on your major, interests, or athletics.
+- **🎨 Modern UI/UX**: Built with React 19, TailwindCSS, and DaisyUI for a sleek, responsive, and themeable experience.
+- **🏆 Gamification**: Earn badges like "Professor" or "Top Contributor" (Admin managed).
+- **🔒 Secure Authentication**: JWT-based stateless authentication with automatic token refreshing.
 
-2. Análise da Stack Tecnológica
-Sua assistência deve ser fluente nas seguintes tecnologias:
+---
 
-Backend (Django / core/ e config/)
-Framework: Django (core/models.py, core/views.py).
+## 🛠️ Tech Stack
 
-API: Django Rest Framework (DRF) é usado extensivamente com ModelSerializer e Views genéricas (ListCreateAPIView, RetrieveUpdateDestroyAPIView).
+### Frontend (`/client`)
+- **Framework**: React 19
+- **Build Tool**: Vite
+- **Styling**: TailwindCSS v4 + DaisyUI
+- **State Management**: React Context API
+- **Routing**: React Router v7
+- **HTTP Client**: Axios (with Interceptors)
 
-Autenticação: Simple JWT (JSON Web Tokens) para autenticação stateless. O MyTokenObtainPairSerializer customiza o token para incluir o username.
+### Backend (`/core` & `/config`)
+- **Framework**: Django & Django REST Framework (DRF)
+- **Real-Time**: Django Channels (WebSockets)
+- **Database**: SQLite (Dev) / PostgreSQL (Ready)
+- **Auth**: Simple JWT
 
-Tempo Real (Chat): Django Channels é usado para o chat 1-para-1. A configuração (config/asgi.py) usa ProtocolTypeRouter e um TokenAuthMiddleware customizado (core/middleware.py) que autentica WebSockets via parâmetros de URL.
+---
 
-Banco de Dados: SQLite (db.sqlite3) é o banco de dados de desenvolvimento.
+## 🚀 Getting Started
 
-Dependências Principais: django-cors-headers (para permitir o React), Pillow (para imagens), django-filter (para filtros de API).
+Follow these steps to set up the project locally.
 
-Frontend (React / client/)
-Framework: React 19 (package.json).
+### Prerequisites
+- Node.js (v18+)
+- Python (v3.10+)
 
-Build Tool: Vite (vite.config.js).
+### 1. Clone the Repository
+```bash
+git clone https://github.com/yourusername/UniVerse.git
+cd UniVerse
+```
 
-Estilização: TailwindCSS e DaisyUI são as principais bibliotecas de UI. O ThemeContext.jsx gerencia múltiplos temas do DaisyUI.
+### 2. Backend Setup
+Create a virtual environment and install dependencies.
 
-Roteamento: React Router v7 (App.jsx), incluindo o uso de PrivateRoute e AdminRoute para proteger rotas.
+```bash
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
 
-Comunicação API: Axios. Um axiosInstance.js centralizado intercepta requisições para injetar o token JWT e, crucialmente, implementa a lógica de refresh token automaticamente.
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
 
-Estado Global: React Context API.
+# Install requirements
+pip install -r requirements.txt
 
-AuthContext.jsx: Gerencia tokens, informações do usuário (persistidas no localStorage) e a flag showOnboardingModal.
+# Run Migrations
+python manage.py migrate
 
-ThemeContext.jsx: Gerencia a troca de temas.
+# Start Server
+python manage.py runserver 0.0.0.0:8000
+```
+*The API will run at `http://127.0.0.1:8000/`*
 
-Tempo Real (Chat): react-use-websocket é usado no ChatDetailPage.jsx para se conectar ao backend Django Channels.
+### 3. Frontend Setup
+Open a new terminal for the client.
 
-3. Análise do Estado Atual do Projeto
-O projeto está em estágio avançado de desenvolvimento, com a maioria das features principais funcionais.
+```bash
+cd client
 
-Banco de Dados e Modelos (core/models.py)
-A arquitetura de dados (core/models.py) é o coração da aplicação:
+# Install dependencies
+npm install
 
-User e Profile: O User padrão do Django é estendido via OneToOneField para um Profile. O Profile armazena bio, profile_pic, cover_photo e o sistema de following (M2M consigo mesmo).
+# Start Development Server
+npm run dev -- --host
+```
+*The app will run at `http://localhost:5173/`*
 
-Onboarding Universitário: Profile contém campos-chave: universidade, curso, atletica, ano_inicio e um booleano onboarding_complete.
+---
 
-Posts: Modelo central. Suporta content, image, video e attachment. Pode ser global (community=NULL) ou pertencer a uma Community.
+## 📸 Screenshots
 
-Community e CommunityMembership: Sistema de grupos com admin, privacy ('public', 'private') e um modelo de CommunityMembership que armazena status ('pending', 'approved').
+*(Add your screenshots here!)*
 
-Interações: Comment (ForeignKey para Post), Reaction (ForeignKey para Post) e Tag (M2M com Post).
+| Login Page | Feed |
+|:---:|:---:|
+| ![Login Placeholder](https://via.placeholder.com/300x200?text=Login+Page) | ![Feed Placeholder](https://via.placeholder.com/300x200?text=Feed+UI) |
 
-Chat: Conversation (M2M com User) e Message (ForeignKey para Conversation e User).
+---
 
-Gamificação/Admin: Badge (M2M com Profile) para emblemas (ex: "Professor").
+## 🤝 Contributing
 
-Notificações: O modelo Notification existe. core/signals.py já cria notificações automaticamente para follow, comment e membership_approved.
+Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests.
 
-Dados de Teste: O db.sqlite3 contém dados de teste, incluindo usuários ("FreddyFazbear", "HatsuneMiku") e posts com conteúdo de meme ("cala boca cadela", "INDIRETA PRA MIM FOFA?"). Isso indica um ambiente de desenvolvimento ativo e informal.
+## 📄 License
 
-Backend (API e Lógica)
-API core/views.py: A API está bem segmentada:
-
-Auth: UserCreateAPIView (Registro), MyTokenObtainPairView (Login).
-
-Posts: CRUD completo em PostListAPIView (Feed Global) e PostDetailsAPIView.
-
-Interações: Endpoints dedicados para /react/, /save/ (salvar post) e /follow/.
-
-Perfis: UserDetailView (público), UserUpdateView e ProfileUpdateView (privado).
-
-Comunidades: Views para criar, listar, detalhar, entrar (JoinCommunityView), aprovar (ApproveMemberView) e ver feeds de comunidade (CommunityFeedView).
-
-Chat: Views para iniciar (StartConversationView), listar (ConversationListView) e buscar mensagens (MessageListView).
-
-Admin: Endpoints protegidos (IsAdminUser) para listar/editar usuários (AdminUserListView, AdminUserDetailView) e listar badges/posts.
-
-Permissões (core/permissions.py): Permissões customizadas como IsOwnerOrReadOnly e IsCommunityAdmin controlam o acesso a posts e gerenciamento de comunidades.
-
-Frontend (Componentes e Fluxos)
-Arquitetura de Componentes: O frontend é bem componentizado. O Feed.jsx é um componente reutilizável crucial, usado em HomePage.jsx (feed global), FollowingFeedPage.jsx (feed de quem segue) e ProfilePage.jsx (posts do usuário).
-
-Fluxo de Autenticação: LoginPage.jsx e RegisterPage.jsx funcionam. AuthContext.jsx armazena os tokens e dados do usuário no localStorage.
-
-Fluxo de Onboarding: Após o login, AuthContext checa a flag onboarding_complete do perfil. Se false, o OnboardingModal.jsx é exibido, coletando dados universitários e tentando inscrever o usuário na comunidade do seu curso.
-
-Interação em Tempo Real: ChatDetailPage.jsx usa WebSockets para enviar e receber mensagens em tempo real.
-
-Features de UI: SearchUser.jsx (com useDebounce), Reactions.jsx (com lógica otimista) e ThemeSwitcher.jsx demonstram uma UI reativa e moderna.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
