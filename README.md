@@ -95,12 +95,25 @@ npm run dev -- --host
 
 ## 📸 Screenshots
 
-*(Add your screenshots here!)*
-
 | Login Page | Feed |
 |:---:|:---:|
 | ![Login Placeholder](https://via.placeholder.com/300x200?text=Login+Page) | ![Feed Placeholder](https://via.placeholder.com/300x200?text=Feed+UI) |
 
+![alt text](media/screenshots/login.png)
+
+![alt text](media/screenshots/feed.png)
+
+![alt text](media/screenshots/profile.png)
+
+![alt text](media/screenshots/chat.png)
+
+![alt text](media/screenshots/community.png)
+
+![alt text](media/screenshots/community2.png)
+
+![alt text](media/screenshots/notis.png)
+
+![alt text](media/screenshots/admin.png)
 ---
 
 ## 🤝 Contributing
